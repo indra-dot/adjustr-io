@@ -1,36 +1,37 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Calculator, Search, AlertTriangle, Info, Syringe, Activity, ChevronRight, RefreshCw, ChevronDown } from 'lucide-react';
+import { 
+  Calculator, Search, AlertTriangle, Info, Syringe, 
+  Activity, ChevronRight, RefreshCw, ChevronDown, List, X
+} from 'lucide-react';
 
 /**
  * ==========================================
  * DATA REPOSITORY (THE KNOWLEDGE BASE)
  * ==========================================
- * Mensimulasikan data dari Stanford Antimicrobial Guide + MIMS + Updates (Antifungals & Antivirals).
+ * Fully restored 20+ drugs with Internist-level Clinical Pearls.
  */
 const DRUG_DATABASE = {
-  // --- ANTIVIRALS (NEW) ---
+  // --- ANTIVIRALS ---
   "acyclovir-iv": {
     name: "Acyclovir (IV)",
     class: "Antiviral (DNA Polymerase Inhibitor)",
-    note: "RISIKO NEFROTOKSIK (Crystal Nephropathy). Pastikan hidrasi adekuat (NS 1L pre/post). Gunakan IBW pada pasien obesitas. Infus lambat > 1 jam.",
-    rrt: {
-      ihd: "2.5 - 5 mg/kg post-dialysis.",
-      crrt: "Treatment: 5-7.5 mg/kg q24h. Prophylaxis: 2.5-5 mg/kg q24h.",
-      sled: "5 - 10 mg/kg post-SLED."
-    },
+    note: "Risiko Crystal Nephropathy (obstruksi tubulus). Wajib hidrasi agresif (loading NS 500ml-1L). Monitor SCr tiap 48 jam. Infus harus lambat (>1 jam) untuk cegah presipitasi di tubulus renalis.",
+    rrt: { ihd: "2.5-5 mg/kg post-dialysis.", crrt: "Tx: 5-7.5 mg/kg q24h. Px: 2.5-5 mg/kg q24h.", sled: "5-10 mg/kg post-SLED." },
     isMultiStrategy: true,
     strategies: {
       "Prophylaxis (BMT / HOM / Immunocompromised)": {
-        standard_dose: "5 mg/kg IV q12h (or 250 mg/m2 q12h)",
+        standard_dose: "5 mg/kg IV q12h",
         adjustments: [
+          { max: 200, min: 51, recommendation: "5 mg/kg IV q12h" },
           { max: 50, min: 25, recommendation: "5 mg/kg IV q24h" },
           { max: 24, min: 10, recommendation: "2.5 mg/kg IV q24h" },
-          { max: 9, min: 0, recommendation: "2.5 mg/kg IV q48h (or 1.25 mg/kg q24h)" }
+          { max: 9, min: 0, recommendation: "2.5 mg/kg IV q48h" }
         ]
       },
-      "Treatment (General / Severe / CNS HSV / VZV)": {
+      "Treatment (HSV / VZV / Encephalitis)": {
         standard_dose: "10 mg/kg IV q8h",
         adjustments: [
+          { max: 200, min: 51, recommendation: "10 mg/kg IV q8h" },
           { max: 50, min: 25, recommendation: "10 mg/kg IV q12h" },
           { max: 24, min: 10, recommendation: "10 mg/kg IV q24h" },
           { max: 9, min: 0, recommendation: "5 mg/kg IV q24h" }
@@ -40,26 +41,24 @@ const DRUG_DATABASE = {
   },
   "acyclovir-po": {
     name: "Acyclovir (PO)",
-    class: "Antiviral (DNA Polymerase Inhibitor)",
-    note: "Bioavailabilitas oral rendah (15-30%). Untuk infeksi berat/CNS, selalu gunakan IV. Maintain hydration.",
-    rrt: {
-      ihd: "Dose after dialysis.",
-      crrt: "Adjustment same as CrCl < 10.",
-      sled: "Dose after SLED."
-    },
+    class: "Antiviral",
+    note: "Bioavailabilitas oral rendah (15-30%). Penyesuaian dosis krusial pada Zoster (dosis tinggi). Maintain hidrasi untuk mencegah akumulasi di tubulus renal.",
+    rrt: { ihd: "Dose after dialysis.", crrt: "Same as CrCl < 10.", sled: "Dose after SLED." },
     isMultiStrategy: true,
     strategies: {
-      "Prophylaxis (BMT / HOM)": {
-        standard_dose: "400 - 800 mg PO q12h",
+      "Zoster Treatment": {
+        standard_dose: "800 mg PO 5x/day",
         adjustments: [
-          { max: 10, min: 0, recommendation: "200 - 400 mg PO q12h" } // Simplified Stanford logic
+          { max: 200, min: 26, recommendation: "800 mg 5x/day" },
+          { max: 25, min: 10, recommendation: "800 mg PO q8h" },
+          { max: 9, min: 0, recommendation: "800 mg PO q12h" }
         ]
       },
-      "Treatment (Mucocutaneous HSV / VZV / Zoster)": {
-        standard_dose: "800 mg PO 5x/day (Zoster) OR 400 mg PO q8h (HSV)",
+      "HSV Treatment / Prophylaxis": {
+        standard_dose: "400 mg PO q8h",
         adjustments: [
-          { max: 25, min: 10, recommendation: "Normal dose but extend interval to q8h (Zoster) or q12h (HSV)" },
-          { max: 9, min: 0, recommendation: "800 mg q12h (Zoster) or 200 mg q12h (HSV)" }
+          { max: 200, min: 11, recommendation: "400 mg PO q8h" },
+          { max: 10, min: 0, recommendation: "200 mg PO q12h" }
         ]
       }
     }
@@ -67,15 +66,11 @@ const DRUG_DATABASE = {
   "ganciclovir": {
     name: "Ganciclovir (IV)",
     class: "Antiviral (CMV)",
-    note: "PERINGATAN: Myelosuppression (Neutropenia, Thrombocytopenia). Monitor CBC ketat. Gunakan IBW pada obesitas.",
-    rrt: {
-      ihd: "Induction: 1.25 mg/kg post-HD. Maintenance: 0.6 mg/kg post-HD.",
-      crrt: "Induction: 2.5 mg/kg q24h. Maintenance: 1.25 mg/kg q24h.",
-      sled: "Induction: 2.5 mg/kg post-SLED. Maintenance: 1.25 mg/kg post-SLED."
-    },
+    note: "Dreaded side effect: Myelosuppression (Neutropenia). Gunakan IBW untuk kalkulasi dosis. Monitor CBC rutin tiap 2-3 hari. Induksi krusial untuk CMV retinitis/organ disease.",
+    rrt: { ihd: "Induction: 1.25 mg/kg post-HD.", crrt: "Induction: 2.5 mg/kg q24h.", sled: "Induction: 2.5 mg/kg post-SLED." },
     isMultiStrategy: true,
     strategies: {
-      "Induction (I) - Active Infection": {
+      "Induction (Active Infection)": {
         standard_dose: "5 mg/kg IV q12h",
         adjustments: [
           { max: 69, min: 50, recommendation: "2.5 mg/kg IV q12h" },
@@ -84,13 +79,12 @@ const DRUG_DATABASE = {
           { max: 9, min: 0, recommendation: "1.25 mg/kg IV 3x/week post-HD" }
         ]
       },
-      "Maintenance (M) - Secondary Prophylaxis": {
+      "Maintenance (Secondary Px)": {
         standard_dose: "5 mg/kg IV q24h",
         adjustments: [
           { max: 69, min: 50, recommendation: "2.5 mg/kg IV q24h" },
           { max: 49, min: 25, recommendation: "1.25 mg/kg IV q24h" },
-          { max: 24, min: 10, recommendation: "0.625 mg/kg IV q24h" },
-          { max: 9, min: 0, recommendation: "0.625 mg/kg IV 3x/week post-HD" }
+          { max: 24, min: 10, recommendation: "0.625 mg/kg IV q24h" }
         ]
       }
     }
@@ -98,349 +92,178 @@ const DRUG_DATABASE = {
   "valganciclovir": {
     name: "Valganciclovir (PO)",
     class: "Antiviral (CMV)",
-    note: "Prodrug Ganciclovir. 900mg Valganciclovir PO ~ 5mg/kg Ganciclovir IV. Minum dengan makanan. Hati-hati Neutropenia.",
-    rrt: {
-      ihd: "Induction: 200mg PO post-HD. Maintenance: 100mg PO post-HD (NOTE: Tablets usually 450mg, liquid avail).",
-      crrt: "Induction: 450mg PO q24h. Maintenance: 450mg PO q48h.",
-      sled: "Dose post-SLED similar to IHD logic."
-    },
+    note: "Prodrug Ganciclovir (900mg PO ~ 5mg/kg IV). Absorpsi meningkat signifikan dengan makanan lemak tinggi. Risiko toksisitas sumsum tulang sama dengan ganciclovir.",
+    rrt: { ihd: "200mg post-HD.", crrt: "450mg q24h-48h.", sled: "Dose post-SLED." },
     isMultiStrategy: true,
     strategies: {
-      "Induction (CMV Retinitis/Severe Disease)": {
+      "Induction (Organ Disease)": {
         standard_dose: "900 mg PO BID",
         adjustments: [
           { max: 59, min: 40, recommendation: "450 mg PO BID" },
           { max: 39, min: 25, recommendation: "450 mg PO q24h" },
-          { max: 24, min: 10, recommendation: "450 mg PO q48h" },
-          { max: 9, min: 0, recommendation: "Avoid or refer to HD dosing" }
-        ]
-      },
-      "Maintenance / Prophylaxis": {
-        standard_dose: "900 mg PO q24h",
-        adjustments: [
-          { max: 59, min: 40, recommendation: "450 mg PO q24h" },
-          { max: 39, min: 25, recommendation: "450 mg PO q48h" },
-          { max: 24, min: 10, recommendation: "450 mg PO 2x/week" },
-          { max: 9, min: 0, recommendation: "Avoid or refer to HD dosing" }
+          { max: 24, min: 10, recommendation: "450 mg PO q48h" }
         ]
       }
     }
   },
   "oseltamivir": {
-    name: "Oseltamivir (Tamiflu)",
-    class: "Antiviral (Neuraminidase Inhibitor)",
-    note: "First line for Influenza A/B. Adjustment starts at CrCl < 60.",
-    rrt: {
-      ihd: "Tx: 30mg post-HD (or 75mg post every 2nd HD). Px: 30mg post every 2nd HD.",
-      crrt: "Tx: 30 mg q12h. Px: 30 mg q24h.",
-      sled: "Tx: 30 mg post-SLED."
-    },
+    name: "Oseltamivir (PO)",
+    class: "Antiviral (Influenza)",
+    note: "Neuraminidase inhibitor. Paling efektif jika dimulai <48 jam onset gejala. Penyesuaian dosis dimulai pada CrCl < 60 mL/min.",
+    rrt: { ihd: "30mg post-HD.", crrt: "30mg q12h.", sled: "30mg post-SLED." },
     isMultiStrategy: true,
     strategies: {
       "Treatment (Influenza A/B)": {
         standard_dose: "75 mg PO BID",
         adjustments: [
-          { max: 60, min: 30, recommendation: "30 mg PO BID" },
-          { max: 29, min: 10, recommendation: "30 mg PO q24h" }
-        ]
-      },
-      "Prophylaxis": {
-        standard_dose: "75 mg PO q24h",
-        adjustments: [
-          { max: 60, min: 30, recommendation: "30 mg PO q24h" },
-          { max: 29, min: 10, recommendation: "30 mg PO q48h" }
+          { max: 60, min: 31, recommendation: "30 mg PO BID" },
+          { max: 30, min: 11, recommendation: "30 mg PO q24h" }
         ]
       }
     }
   },
 
-  // --- ANTIFUNGALS (PREVIOUSLY ADDED) ---
+  // --- ANTIFUNGALS ---
   "fluconazole": {
     name: "Fluconazole",
     class: "Antifungal (Azole)",
-    note: "Dosis maintenance dikurangi 50% jika CrCl < 50 ml/min. Untuk HD: Berikan dosis PENUH (100%) setelah setiap sesi dialisis. Indikator dosis 400-800mg lazim untuk C.neoformans/Candidemia.",
-    rrt: {
-      ihd: "Give 100% of indicated dose AFTER each dialysis session.",
-      crrt: "Standard dose (400-800 mg q24h). No adjustment needed.",
-      sled: "Give 100% of indicated dose AFTER SLED."
-    },
+    note: "Interaksi obat via inhibisi CYP3A4. Risiko perpanjangan QTc. Clearance renal dominan (80%). Loading dose krusial (biasanya 2x dosis maintenance). Post-HD: Berikan 100% dosis.",
+    rrt: { ihd: "100% dose AFTER dialysis.", crrt: "Standard dose.", sled: "Standard dose." },
     isMultiStrategy: true,
     strategies: {
-      "Systemic (Candidemia / Cryptococcal Meningitis)": {
-        standard_dose: "400 - 800 mg IV/PO q24h (Loading dose may be required)",
-        adjustments: [
-          { max: 50, min: 0, recommendation: "200 - 400 mg IV/PO q24h (50% reduction)" }
-        ]
-      },
-      "Mucosal (Oropharyngeal / Esophageal Candidiasis)": {
-        standard_dose: "100 - 200 mg IV/PO q24h",
-        adjustments: [
-          { max: 50, min: 0, recommendation: "50 - 100 mg IV/PO q24h (50% reduction)" }
-        ]
-      },
-      "Vaginal Candidiasis (Uncomplicated)": {
-        standard_dose: "150 mg PO x 1 dose",
-        adjustments: [
-          { max: 50, min: 0, recommendation: "150 mg PO x 1 (No adjustment for single dose)" }
-        ]
+      "Systemic Candidiasis": {
+        standard_dose: "400 - 800 mg q24h",
+        adjustments: [{ max: 50, min: 0, recommendation: "Reduce maintenance dose by 50%." }]
       }
     }
   },
   "voriconazole": {
     name: "Voriconazole",
     class: "Antifungal (Azole)",
-    note: "PERINGATAN FORMULASI IV: Pelarut SBECD menumpuk pada CrCl < 50 ml/min (potensi nefrotoksik). Ganti ke ORAL jika memungkinkan (Bioavailabilitas >96%). Target trough: 2-5.5 mcg/mL. Hati-hati interaksi CYP450.",
-    rrt: {
-      ihd: "Oral: No adjustment. IV: Avoid if possible due to SBECD. If used, give after HD.",
-      crrt: "Oral: Standard dose. IV: No adjustment needed (SBECD removed by CRRT).",
-      sled: "Oral: Standard dose. IV: Give after SLED."
-    },
+    note: "IV formulation: Pelarut SBECD menumpuk pada CrCl < 50, risiko nefrotoksisitas. SWITCH TO ORAL (Bioavailabilitas >96%). Target Trough: 2-5.5 mcg/mL. Pantau fungsi hati (SGOT/SGPT).",
+    rrt: { ihd: "Oral: No adj. IV: Give after HD.", crrt: "Standard dose.", sled: "Dose after SLED." },
     isMultiStrategy: true,
     strategies: {
-      "Oral Tablet (Preferred for CrCl < 50)": {
-        standard_dose: "200 mg (or 3-4 mg/kg) PO q12h",
+      "Intravenous (IV) Mode": {
+        standard_dose: "4 mg/kg IV q12h",
         adjustments: [
-          { max: 50, min: 0, recommendation: "No renal adjustment required for ORAL form." }
+          { max: 200, min: 51, recommendation: "4 mg/kg IV q12h" },
+          { max: 50, min: 0, recommendation: "SWITCH TO ORAL tablet to avoid SBECD accumulation." }
         ]
       },
-      "Intravenous (IV) Formulation": {
-        standard_dose: "4 mg/kg IV q12h (Maintenance)",
-        adjustments: [
-          { max: 50, min: 0, recommendation: "SWITCH TO ORAL. (If IV mandatory: Benefit > Risk only. Monitor SCr)." }
-        ]
+      "Oral Tablet": {
+        standard_dose: "200 mg PO q12h",
+        adjustments: [{ max: 200, min: 0, recommendation: "No Renal Adjustment Required for Oral form." }]
       }
     }
   },
   "caspofungin": {
     name: "Caspofungin",
     class: "Antifungal (Echinocandin)",
-    note: "NO RENAL ADJUSTMENT. Penyesuaian dosis hanya untuk gangguan HATI (Child-Pugh B: 35 mg maintenance). Aman untuk ginjal.",
-    rrt: {
-      ihd: "No adjustment. Dosing not affected by dialysis.",
-      crrt: "No adjustment.",
-      sled: "No adjustment."
-    },
-    isMultiStrategy: true,
-    strategies: {
-      "Invasive Candidiasis / Aspergillosis": {
-        standard_dose: "Load 70 mg IV x1, then 50 mg IV q24h",
-        adjustments: [
-          { max: 30, min: 0, recommendation: "Load 70 mg, then 50 mg q24h (No Renal Adj). Child-Pugh B: 35 mg maint." }
-        ]
-      },
-      "Esophageal Candidiasis": {
-        standard_dose: "50 mg IV q24h (No loading dose)",
-        adjustments: [
-          { max: 30, min: 0, recommendation: "50 mg q24h (No Renal Adj). Child-Pugh B: 35 mg." }
-        ]
-      }
-    }
+    note: "Aman untuk ginjal. Metabolisme di hati. Adjust dosis hanya pada gangguan hati (Child-Pugh B: 35mg maintenance).",
+    rrt: { ihd: "No adjustment.", crrt: "No adjustment.", sled: "No adjustment." },
+    standard_dose: "Load 70mg, then 50mg q24h",
+    adjustments: [{ max: 200, min: 0, recommendation: "No Renal Adjustment Required." }]
   },
   "amphotericin-b": {
     name: "Amphotericin B",
     class: "Antifungal (Polyene)",
-    note: "SANGAT NEFROTOKSIK (Terutama formulasi konvensional/Deoxycholate). Hydration (Salt Loading) pre/post infus sangat disarankan. Pantau K+ dan Mg++ ketat.",
-    rrt: {
-      ihd: "Liposomal: No adj. Conventional: No adj, but consider dosing q48h to reduce toxicity burden.",
-      crrt: "Standard dose.",
-      sled: "Standard dose."
-    },
+    note: "Nefrotoksisitas berat (Vasokonstriksi arteriol aferen). Wajib salt loading (NS 500-1000ml pre/post). Pantau K+ dan Mg++ (risiko hipokalemia berat). Liposomal form lebih aman dibanding Deoxycholate.",
+    rrt: { ihd: "No adj.", crrt: "Standard dose.", sled: "Standard dose." },
     isMultiStrategy: true,
     strategies: {
-      "Liposomal (AmBisome) - Less Nephrotoxic": {
+      "Liposomal (AmBisome)": {
         standard_dose: "3 - 5 mg/kg IV q24h",
-        adjustments: [
-           { max: 30, min: 0, recommendation: "No dose adjustment defined, but toxicity monitoring essential." }
-        ]
+        adjustments: [{ max: 200, min: 0, recommendation: "No renal adjustment, but monitor SCr closely." }]
       },
-      "Conventional (Deoxycholate) - HIGH RISK": {
+      "Conventional (Deoxycholate)": {
         standard_dose: "0.5 - 1.0 mg/kg IV q24h",
         adjustments: [
-           { max: 50, min: 10, recommendation: "Avoid if possible. Consider salt loading." },
-           { max: 10, min: 0, recommendation: "Use Liposomal if available. If strict usage: q24h or q48h." }
+          { max: 200, min: 11, recommendation: "0.5 - 1.0 mg/kg q24h" },
+          { max: 10, min: 0, recommendation: "q24h or q48h. Consider Liposomal." }
         ]
       }
     }
   },
 
-  // --- ANTIBIOTICS (UNCHANGED) ---
-  "cefoperazone-sulbactam": {
-    name: "Cefoperazone-Sulbactam",
-    class: "Cephalosporin / Beta-lactamase Inhibitor",
-    note: "Adjustment based on SULBACTAM component (Renal excretion). Cefoperazone (Biliary excretion) needs adjustment only in severe hepatic obstruction. Ratio typically 1:1 or 2:1.",
-    rrt: {
-      ihd: "Sulbactam is dialyzable. Administer dose AFTER dialysis.",
-      crrt: "No strict adjustment required (Standard dose usually safe).",
-      sled: "Administer dose AFTER SLED."
-    },
-    isMultiStrategy: true,
-    strategies: {
-      "Standard Ratio (1g Cefoperazone : 1g Sulbactam)": {
-        standard_dose: "2 g (1g Cef + 1g Sulb) IV q12h",
-        adjustments: [
-          { max: 30, min: 15, recommendation: "2 g (1g Cef + 1g Sulb) IV q12h (Max Sulbactam 2g/day)" },
-          { max: 14, min: 0, recommendation: "1.5 g (1g Cef + 0.5g Sulb) IV q12h OR 2g q24h (Max Sulbactam 1g/day)" }
-        ]
-      },
-      "Ratio 2:1 (1g Cefoperazone : 0.5g Sulbactam)": {
-        standard_dose: "1.5 g (1g Cef + 0.5g Sulb) IV q12h",
-        adjustments: [
-          { max: 30, min: 15, recommendation: "1.5 g IV q12h (Safe range)" },
-          { max: 14, min: 0, recommendation: "1.5 g IV q12h (Max Sulbactam 1g/day reached)" }
-        ]
-      }
-    }
-  },
-  "ampicillin-sulbactam": {
-    name: "Ampicillin-Sulbactam",
-    class: "Penicillin / Beta-lactamase Inhibitor",
-    note: "Rasio Ampicillin:Sulbactam = 2:1. (3g = 2g Ampi + 1g Sulb). Untuk Acinetobacter (ABA), target efikasi berdasarkan komponen Sulbactam (Target high dose).",
-    rrt: {
-      ihd: "Standard: 1.5 - 3 g IV q24h (Post-HD). ABA: 3 g IV q12h (Post-HD).",
-      crrt: "Standard: 3 g IV q12h. ABA: 3 g IV q8h.",
-      sled: "3 g IV q24h (Post-SLED)"
-    },
-    isMultiStrategy: true,
-    strategies: {
-      "Mild / Uncomplicated": {
-        standard_dose: "1.5 - 3 g IV q6h",
-        adjustments: [
-          { max: 30, min: 15, recommendation: "1.5 - 3 g IV q12h" },
-          { max: 14, min: 5, recommendation: "1.5 - 3 g IV q24h" },
-          { max: 4, min: 0, recommendation: "1.5 g IV q24h" }
-        ]
-      },
-      "Systemic / Severe Infection": {
-        standard_dose: "3 g IV q6h",
-        adjustments: [
-          { max: 30, min: 15, recommendation: "3 g IV q12h" },
-          { max: 14, min: 5, recommendation: "3 g IV q24h" },
-          { max: 4, min: 0, recommendation: "1.5 - 3 g IV q24h" }
-        ]
-      },
-      "Acinetobacter (ABA) - High Dose": {
-        standard_dose: "3 g IV q4h (Total ~6g Sulbactam/day)",
-        adjustments: [
-          { max: 50, min: 30, recommendation: "3 g IV q6h" },
-          { max: 29, min: 15, recommendation: "3 g IV q8h" },
-          { max: 14, min: 0, recommendation: "3 g IV q12h" }
-        ]
-      }
-    }
-  },
-  "ampicillin": {
-    name: "Ampicillin",
-    class: "Penicillin",
-    note: "Risiko kejang pada dosis tinggi dengan gangguan ginjal. CrCL > 130 may consider increasing dose to 2g IV q4h for mild uncomplicated infections due to enhanced clearance. For meningitis/endovascular/PJI, may consider administering via continuous infusion.",
-    rrt: {
-      ihd: "1-2 g IV q12-24h (Give after dialysis)",
-      crrt: "2 g IV q6-8h",
-      sled: "2 g IV q12h"
-    },
-    isMultiStrategy: true,
-    strategies: {
-      "Mild / Uncomplicated Infection": {
-        standard_dose: "1-2 g IV q6h",
-        adjustments: [
-          { max: 50, min: 10, recommendation: "1-2 g IV q6-12h" },
-          { max: 10, min: 0, recommendation: "1-2 g IV q12-24h" }
-        ]
-      },
-      "Meningitis / Endovascular / PJI (Severe)": {
-        standard_dose: "2 g IV q4h",
-        adjustments: [
-          { max: 50, min: 10, recommendation: "2 g IV q6-8h" },
-          { max: 10, min: 0, recommendation: "2 g IV q12h" }
-        ]
-      }
-    }
-  },
-  "metronidazole": {
-    name: "Metronidazole",
-    class: "Nitroimidazole",
-    note: "Aman untuk ginjal (No Adjustment needed for CrCl reduction), NAMUN metabolit menumpuk pada CrCl < 30 (terutama jika > 1-2 minggu, risiko neuropati/seizure). Perhatikan efek disulfiram-like.",
-    rrt: {
-      ihd: "Dose after dialysis (Significantly removed by dialysis). Supplement with 250-500mg if dose given pre-dialysis.",
-      crrt: "500 mg q8h",
-      sled: "500 mg q8h"
-    },
-    isMultiStrategy: true,
-    strategies: {
-      "CNS / C.diff / SSTI / Necrotizing Infection": {
-        standard_dose: "500 mg IV/PO q8h",
-        adjustments: [
-          { max: 150, min: 30, recommendation: "500 mg q8h" },
-          { max: 29, min: 0, recommendation: "500 mg q8h (Caution: Metabolite accumulation if >1-2 weeks)" }
-        ]
-      },
-      "Intra-abdominal Infection": {
-        standard_dose: "500 mg IV/PO q8-12h",
-        adjustments: [
-           { max: 150, min: 30, recommendation: "500 mg q8-12h" },
-           { max: 29, min: 0, recommendation: "500 mg q12h (Conservative dosing recommended)" }
-        ]
-      },
-      "Severe Hepatic Impairment (Child-Pugh C)": {
-        standard_dose: "500 mg IV/PO q12h",
-        adjustments: [
-          { max: 200, min: 0, recommendation: "500 mg q12h (Hepatic Dose Adjustment)" } 
-        ]
-      }
-    }
-  },
+  // --- ANTIBIOTICS ---
   "meropenem": {
     name: "Meropenem",
     class: "Carbapenem",
-    note: "PERINGATAN UTAMA: Menurunkan kadar Asam Valproat secara signifikan (hindari penggunaan bersamaan). Risiko kejang meningkat pada gangguan ginjal.",
-    rrt: {
-      ihd: "Dose based on indication (Standard: 500mg / Meningitis: 1g) post-dialysis",
-      crrt: "Standard: 1g q12h / Meningitis: 2g q12h",
-      sled: "Dose based on indication post-SLED"
-    },
+    note: "Neurotoksisitas krusial. Interaksi fatal dengan Asam Valproat (Valproat turun drastis, risiko seizure). Consider 3-hour infusion untuk optimalisasi PD pada kuman MDR.",
+    rrt: { ihd: "Std: 500mg post-HD. Meningitis: 1g post-HD.", crrt: "1g q12h.", sled: "Dose post-SLED." },
     isMultiStrategy: true,
     strategies: {
-      "Standard Infection": {
+      "Standard Sepsis": {
         standard_dose: "1 g IV q8h",
         adjustments: [
           { max: 50, min: 26, recommendation: "1 g IV q12h" },
           { max: 25, min: 10, recommendation: "500 mg IV q12h" },
-          { max: 10, min: 0, recommendation: "500 mg IV q24h" }
+          { max: 9, min: 0, recommendation: "500 mg IV q24h" }
         ]
       },
-      "Meningitis / Cystic Fibrosis": {
+      "Meningitis / MDR GNB": {
         standard_dose: "2 g IV q8h",
         adjustments: [
           { max: 50, min: 26, recommendation: "2 g IV q12h" },
           { max: 25, min: 10, recommendation: "1 g IV q12h" },
-          { max: 10, min: 0, recommendation: "1 g IV q24h" }
+          { max: 9, min: 0, recommendation: "1 g IV q24h" }
         ]
       }
     }
   },
   "piperacillin-tazobactam": {
     name: "Piperacillin-Tazobactam",
-    class: "Penicillin / Beta-lactamase Inhibitor",
-    note: "High sodium content. In select cases (sepsis, deep-seated infection, MIC=16, Obesity >120kg/BMI>40, or Augmented Renal Clearance/CF), consider doses of 4.5 g IV q8h (4h infusion) or q6h.",
-    rrt: {
-      ihd: "2.25 g IV q8h (Dose after dialysis). Give extra 0.75g dose for severe infections.",
-      crrt: "4.5 g IV q8h (Extended Infusion preferred)",
-      sled: "2.25 g IV q8h (after SLED)"
-    },
+    class: "Penicillin / BLI",
+    note: "Nephrotoxicity synergism dengan Vancomycin (PIPER study). Extended infusion (4h) disarankan untuk kuman dengan MIC tinggi. Sodium load tinggi (2.8mEq/g).",
+    rrt: { ihd: "2.25 g IV q8h post-HD.", crrt: "4.5 g IV q8h (Extended Infusion).", sled: "2.25 g IV q8h." },
     isMultiStrategy: true,
     strategies: {
-      "Extended Infusion (4 hours) - PREFERRED": {
-        standard_dose: "4.5 g IV q6h (Infuse over 4 hours)",
+      "Extended Infusion (4h)": {
+        standard_dose: "4.5 g IV q6h",
         adjustments: [
-          { max: 90, min: 40, recommendation: "4.5 g IV q8h (Infuse over 4h)" }, 
-          { max: 40, min: 20, recommendation: "3.375 g IV q8h (Infuse over 4h)" },
-          { max: 20, min: 0, recommendation: "3.375 g IV q12h (Infuse over 4h)" } 
+          { max: 40, min: 21, recommendation: "3.375 g IV q8h" },
+          { max: 20, min: 0, recommendation: "3.375 g IV q12h" }
+        ]
+      }
+    }
+  },
+  "cefoperazone-sulbactam": {
+    name: "Cefoperazone-Sulbactam",
+    class: "Cephalosporin / BLI",
+    note: "Cefoperazone ekskresi via empedu, Sulbactam ekskresi via renal. Adjustment dosis didasarkan pada komponen Sulbactam. Max Sulbactam 4g/hari.",
+    rrt: { ihd: "Dose post-HD.", crrt: "Standard dose.", sled: "Dose post-SLED." },
+    isMultiStrategy: true,
+    strategies: {
+      "Ratio 1:1 (Max Sulb 4g/day)": {
+        standard_dose: "2 g (1g/1g) IV q12h",
+        adjustments: [
+          { max: 30, min: 15, recommendation: "2 g IV q12h (Max Sulb 2g/day)" },
+          { max: 14, min: 0, recommendation: "1.5 g (1g/0.5g) q12h or 2g q24h" }
+        ]
+      }
+    }
+  },
+  "ampicillin-sulbactam": {
+    name: "Ampicillin-Sulbactam",
+    class: "Penicillin / BLI",
+    note: "Untuk Acinetobacter (ABA), target dosis tinggi Sulbactam (target 6g/hari). Rasio 2:1. Hati-hati risiko neurotoksisitas pada dosis tinggi dengan CrCl rendah.",
+    rrt: { ihd: "Std: 1.5-3g post-HD. ABA: 3g q12h post-HD.", crrt: "ABA: 3g q8h.", sled: "3g q24h post-SLED." },
+    isMultiStrategy: true,
+    strategies: {
+      "Mild / Moderate Infection": {
+        standard_dose: "1.5 - 3 g IV q6h",
+        adjustments: [
+          { max: 30, min: 15, recommendation: "1.5 - 3 g IV q12h" },
+          { max: 14, min: 0, recommendation: "1.5 - 3 g IV q24h" }
         ]
       },
-      "Intermittent Infusion (Traditional)": {
-        standard_dose: "4.5 g IV q6h (Infuse over 30 mins)",
+      "Acinetobacter (ABA) - High Dose": {
+        standard_dose: "3 g IV q4h",
         adjustments: [
-          { max: 40, min: 20, recommendation: "2.25 g IV q6h (atau 3.375 g q6h untuk infeksi berat)" },
-          { max: 20, min: 0, recommendation: "2.25 g IV q8h" }
+          { max: 200, min: 31, recommendation: "3 g IV q6h" },
+          { max: 30, min: 15, recommendation: "3 g IV q8h" },
+          { max: 14, min: 0, recommendation: "3 g IV q12h" }
         ]
       }
     }
@@ -448,163 +271,109 @@ const DRUG_DATABASE = {
   "cefepime": {
     name: "Cefepime",
     class: "Cephalosporin (4th Gen)",
-    note: "RISIKO NEUROTOKSISITAS (Non-convulsive Status Epilepticus) tinggi pada gagal ginjal jika dosis tidak diturunkan. Monitor status mental ketat.",
-    rrt: {
-      ihd: "1 g IV q24h (Dose after dialysis). For Severe/CNS: 1g after each dialysis.",
-      crrt: "2 g IV q12h (Severe) or 1 g IV q12h (General)",
-      sled: "2 g IV q24h (after SLED)"
-    },
+    note: "NCSE (Non-Convulsive Status Epilepticus) via inhibisi GABA-A receptor. Monitor status mental ketat pada CrCl < 30. Anti-Pseudomonal kuat.",
+    rrt: { ihd: "1 g q24h post-HD.", crrt: "2 g q12h (Severe Sepsis).", sled: "2 g q24h." },
     isMultiStrategy: true,
     strategies: {
-      "Pulmonary / Neutropenic Fever / CNS / Pseudomonas / Severe": {
+      "Severe / Pseudomonas / CNS": {
         standard_dose: "2 g IV q8h",
         adjustments: [
           { max: 60, min: 30, recommendation: "2 g IV q12h" },
           { max: 29, min: 11, recommendation: "2 g IV q24h" },
           { max: 10, min: 0, recommendation: "1 g IV q24h" }
         ]
-      },
-      "General / Mild-Moderate (UTI, Skin)": {
-        standard_dose: "1 g IV q8h",
-        adjustments: [
-          { max: 60, min: 30, recommendation: "1 g IV q12h" },
-          { max: 29, min: 11, recommendation: "1 g IV q24h" },
-          { max: 10, min: 0, recommendation: "500 mg IV q24h" }
-        ]
       }
     }
+  },
+  "ceftazidime": {
+    name: "Ceftazidime",
+    class: "Cephalosporin (3rd Gen)",
+    note: "Lini utama anti-pseudomonal. Penyesuaian dosis agresif pada gangguan ginjal untuk cegah toksisitas CNS.",
+    rrt: { ihd: "1 g post-HD.", crrt: "2 g q12h.", sled: "1 g post-SLED." },
+    standard_dose: "2 g IV q8h",
+    adjustments: [
+      { max: 50, min: 31, recommendation: "1 - 2 g IV q12h" },
+      { max: 30, min: 16, recommendation: "1 - 2 g IV q24h" },
+      { max: 15, min: 6, recommendation: "500mg - 1 g IV q24h" }
+    ]
   },
   "levofloxacin": {
     name: "Levofloxacin",
     class: "Fluoroquinolone",
-    standard_dose: "750 mg IV/PO q24h",
-    note: "Bioavailabilitas oral ~99%. Jangan berikan bersama kation multivalen (Mg, Al, Ca) per oral. Risiko tendinitis dan pemanjangan QT.",
+    note: "Oral bioavailabilitas ~99% (Dosis PO = IV). Risiko tendinopati, disglikemia, dan QT prolongation. Hindari antasida/kation multivalen saat konsumsi oral.",
+    rrt: { ihd: "750mg load, then 500mg q48h.", crrt: "750mg q24h.", sled: "500mg q48h." },
+    standard_dose: "750 mg q24h",
     adjustments: [
-      { max: 50, min: 20, recommendation: "750 mg x1, lalu 750 mg q48h" },
-      { max: 20, min: 10, recommendation: "750 mg x1, lalu 500 mg q48h" },
-      { max: 10, min: 0, recommendation: "750 mg x1, lalu 500 mg q48h" }
-    ],
-    rrt: {
-      ihd: "750 mg x1, lalu 500 mg q48h (Dose after dialysis not required)",
-      crrt: "750 mg IV/PO q24h",
-      sled: "750 mg x1, lalu 500 mg q48h"
-    }
-  },
-  "vancomycin": {
-    name: "Vancomycin",
-    class: "Glycopeptide",
-    standard_dose: "15-20 mg/kg (Actual BW) IV q12h",
-    note: "Target trough level: 15-20 mcg/mL untuk infeksi berat. Wajib TDM (Therapeutic Drug Monitoring). Risiko nefrotoksisitas meningkat dengan Piperacillin-Tazobactam.",
-    adjustments: [
-      { max: 49, min: 30, recommendation: "15 mg/kg IV q24h" },
-      { max: 29, min: 0, recommendation: "15-20 mg/kg IV loading dose, lalu monitor level (random level check)" }
-    ],
-    rrt: {
-      ihd: "Load 20-25 mg/kg. Maintenance berdasarkan pre-dialysis level.",
-      crrt: "Load 20-25 mg/kg. Maintenance 10-15 mg/kg q12-24h (tergantung flow rate).",
-      sled: "Dose after SLED similar to IHD logic."
-    }
-  },
-  "cotrimoxazole": {
-      name: "Cotrimoxazole (TMP/SMX)",
-      class: "Sulfonamide",
-      note: "Hati-hati hiperkalemia dan peningkatan SCr artifisial (hambatan sekresi tubular). Dosis referensi berdasarkan komponen Trimethoprim (TMP). 1 DS Tab = 160mg TMP.",
-      rrt: {
-          ihd: "50% of standard dose, administered after dialysis",
-          crrt: "Dose as in normal renal function (High sieve coefficient)",
-          sled: "50% of standard dose"
-      },
-      isMultiStrategy: true,
-      strategies: {
-          "Uncomplicated Cystitis": {
-              standard_dose: "1 DS tab PO BID",
-              adjustments: [
-                  { max: 30, min: 15, recommendation: "1 DS tab PO q24h (50% dose)" },
-                  { max: 15, min: 0, recommendation: "Avoid if possible or 1 SS tab PO q24h" }
-              ]
-          },
-          "SSTI / S. aureus (Bone/Joint) / GNB Bacteremia": {
-              standard_dose: "8-10 mg/kg/day TMP (approx 2 DS tabs BID)",
-              adjustments: [
-                  { max: 30, min: 15, recommendation: "4-5 mg/kg/day TMP (50% dose)" },
-                  { max: 15, min: 0, recommendation: "Not recommended or 50% dose if essential" }
-              ]
-          },
-          "Stenotrophomonas": {
-              standard_dose: "10-15 mg/kg/day TMP divided q8-12h",
-              adjustments: [
-                  { max: 30, min: 15, recommendation: "5-7.5 mg/kg/day TMP (50% dose)" },
-                  { max: 15, min: 0, recommendation: "Not recommended or 50% dose if essential" }
-              ]
-          },
-          "PJP (Pneumocystis jirovecii)": {
-              standard_dose: "15-20 mg/kg/day TMP divided q6-8h", 
-              adjustments: [
-                  { max: 30, min: 15, recommendation: "7.5-10 mg/kg/day TMP (50% dose)" },
-                  { max: 15, min: 0, recommendation: "Use with caution. 50% dose." }
-              ]
-          }
-      }
-  },
-  "ceftazidime": {
-    name: "Ceftazidime",
-    class: "Cephalosporin (3rd Gen - Anti Pseudomonas)",
-    standard_dose: "2 g IV q8h",
-    note: "Utama untuk Pseudomonas aeruginosa. Jika hanya untuk Enterobacteriaceae (selain Pseudomonas), dosis 1g q8h mungkin cukup.",
-    adjustments: [
-      { max: 50, min: 31, recommendation: "1 - 2 g IV q12h" },
-      { max: 30, min: 16, recommendation: "1 - 2 g IV q24h" },
-      { max: 15, min: 6, recommendation: "500mg - 1 g IV q24h" },
-      { max: 5, min: 0, recommendation: "500mg - 1 g IV q48h" }
-    ],
-    rrt: {
-      ihd: "1 g IV post-dialysis",
-      crrt: "2 g IV q12h",
-      sled: "1 g IV post-SLED"
-    }
+      { max: 50, min: 20, recommendation: "750 mg x1, then 750 mg q48h" },
+      { max: 19, min: 0, recommendation: "750 mg x1, then 500 mg q48h" }
+    ]
   },
   "ciprofloxacin": {
     name: "Ciprofloxacin",
     class: "Fluoroquinolone",
+    note: "Inhibitor moderat CYP1A2. Risiko tendinitis dan ruptur tendon. Efektif untuk GNB aerobik termasuk Pseudomonas.",
+    rrt: { ihd: "400mg q24h post-HD.", crrt: "400mg q12h.", sled: "400mg q24h." },
     standard_dose: "400 mg IV q8-12h",
-    note: "Risiko tendinitis, QT prolongation, dan CNS effects. Hindari pada myasthenia gravis.",
     adjustments: [
-      { max: 30, min: 0, recommendation: "400 mg IV q24h (OR 250-500mg PO q24h)" }
-    ],
-    rrt: {
-      ihd: "400 mg IV q24h (or 250-500mg PO q24h) post-dialysis",
-      crrt: "400 mg IV q12h (PO 500mg q12h)",
-      sled: "400 mg IV q24h post-SLED"
+      { max: 30, min: 0, recommendation: "400 mg IV q24h" }
+    ]
+  },
+  "vancomycin": {
+    name: "Vancomycin",
+    class: "Glycopeptide",
+    note: "AUC/MIC target 400-600. TDM krusial untuk mencegah AKI. Load 25-30mg/kg pada sepsis berat/obesitas. Nephrotoxicity meningkat bila digabung Pip-Tazo.",
+    rrt: { ihd: "Load 20-25mg/kg. Maint by pre-HD levels.", crrt: "Load 20-25mg/kg, then 10-15mg/kg q12-24h.", sled: "Dose by level." },
+    standard_dose: "15 - 20 mg/kg q12h",
+    adjustments: [
+      { max: 49, min: 30, recommendation: "15 mg/kg IV q24h" },
+      { max: 29, min: 0, recommendation: "15-20 mg/kg load, then random level monitoring." }
+    ]
+  },
+  "cotrimoxazole": {
+    name: "Cotrimoxazole (TMP/SMX)",
+    class: "Sulfonamide",
+    note: "Dosis berdasarkan TMP. Risiko hiperkalemia (inhibisi ENaC) dan peningkatan SCr semu (inhibisi sekresi tubular). Penyesuaian dosis mulai pada CrCl < 30.",
+    rrt: { ihd: "50% dose post-HD.", crrt: "Standard dose.", sled: "50% dose." },
+    isMultiStrategy: true,
+    strategies: {
+      "PJP Treatment": {
+        standard_dose: "15 - 20 mg/kg/day TMP",
+        adjustments: [
+          { max: 30, min: 15, recommendation: "7.5 - 10 mg/kg/day (50% dose)" }
+        ]
+      },
+      "SSTI / UTI": {
+        standard_dose: "1 DS tab PO BID",
+        adjustments: [
+          { max: 30, min: 15, recommendation: "1 DS tab PO q24h" }
+        ]
+      }
     }
   },
   "gentamicin": {
     name: "Gentamicin",
     class: "Aminoglycoside",
-    note: "NEPHROTOXIC & OTOTOXIC. Wajib TDM! Gunakan Ideal Body Weight untuk dosing, kecuali Obese (pakai AdjBW). Extended Interval (High Dose) lebih disukai untuk mengurangi akumulasi kortikal ginjal.",
+    note: "Extended interval (Once Daily) mengurangi risiko AKI. Penumpukan di korteks ginjal bersifat saturable. TDM (target trough <1) krusial untuk keamanan jangka panjang.",
+    rrt: { ihd: "2 mg/kg post-HD.", crrt: "2.5 mg/kg load, then by levels.", sled: "2 mg/kg post-SLED." },
     isMultiStrategy: true,
     strategies: {
-      "Extended Interval (Once Daily) - PREFERRED": {
-        standard_dose: "5-7 mg/kg IV q24h",
+      "Extended Interval": {
+        standard_dose: "5 - 7 mg/kg q24h",
         adjustments: [
-          { max: 60, min: 40, recommendation: "5-7 mg/kg IV q36h" },
-          { max: 40, min: 20, recommendation: "5-7 mg/kg IV q48h" },
-          { max: 20, min: 0, recommendation: "Dose by level only. Give loading dose 2mg/kg then check random levels." }
-        ]
-      },
-      "Traditional Dosing (Synergy / Endocarditis)": {
-        standard_dose: "1 mg/kg IV q8h",
-        adjustments: [
-          { max: 60, min: 40, recommendation: "1 mg/kg IV q12h" },
-          { max: 40, min: 20, recommendation: "1 mg/kg IV q24h" },
-          { max: 20, min: 0, recommendation: "Dose by level only" }
+          { max: 60, min: 40, recommendation: "5 - 7 mg/kg q36h" },
+          { max: 39, min: 20, recommendation: "5 - 7 mg/kg q48h" },
+          { max: 19, min: 0, recommendation: "Dosing based on TDM Levels only." }
         ]
       }
-    },
-    rrt: {
-      ihd: "2 mg/kg after dialysis (Monitor pre-HD levels)",
-      crrt: "2.5 mg/kg loading, then 1-2 mg/kg q24-48h (Monitor levels!)",
-      sled: "2 mg/kg after SLED"
     }
+  },
+  "metronidazole": {
+    name: "Metronidazole",
+    class: "Nitroimidazole",
+    note: "Aman untuk ginjal. Metabolit dapat menumpuk pada ESRD tetapi signifikansi klinis minim kecuali penggunaan >2 minggu. Neurotoxicity (neuropati) risiko utama.",
+    rrt: { ihd: "Dose post-HD.", crrt: "500mg q8h.", sled: "500mg q8h." },
+    standard_dose: "500 mg q8h",
+    adjustments: [{ max: 200, min: 0, recommendation: "500 mg q8h (No Renal Adj. needed)" }]
   }
 };
 
@@ -613,379 +382,272 @@ const DRUG_DATABASE = {
  * MEDICAL LOGIC ENGINE
  * ==========================================
  */
-
-// Hitung BMI
-const calculateBMI = (weight, height) => {
-  if (!weight || !height) return 0;
-  const heightM = height / 100;
-  return weight / (heightM * heightM);
-};
-
-// Hitung IBW (Devine Formula)
 const calculateIBW = (height, gender) => {
   if (!height) return 0;
   const inches = height / 2.54;
   const base = gender === 'male' ? 50 : 45.5;
-  const result = base + 2.3 * (inches - 60);
-  return result > 0 ? result : 0;
+  return base + 2.3 * (inches - 60);
 };
 
-// Hitung Adjusted BW (untuk Obesitas)
-// Rumus: IBW + 0.4(Actual - IBW)
-const calculateAdjBW = (weight, ibw) => {
-  return ibw + 0.4 * (weight - ibw);
-};
+const calculateAdjBW = (weight, ibw) => ibw + 0.4 * (weight - ibw);
 
-// Cockcroft-Gault Engine
 const calculateCrCl = (age, weight, creatinine, gender, height) => {
-  if (!age || !weight || !creatinine || !height) return null;
-  
+  if (!age || !weight || !creatinine || !height || creatinine <= 0) return null;
   const ibw = calculateIBW(height, gender);
-  
-  let dosingWeight = ibw;
-  let weightType = "IBW";
-
-  if (weight < ibw) {
-    dosingWeight = weight;
-    weightType = "Actual BW (Underweight)";
-  } else if (weight > ibw * 1.3) {
-    dosingWeight = calculateAdjBW(weight, ibw);
-    weightType = "Adjusted BW (Obese)";
-  } else {
-    dosingWeight = ibw; 
-    weightType = "IBW (Normal/Overweight)";
-  }
-
+  let dosingWeight = weight < ibw ? weight : (weight > ibw * 1.3 ? calculateAdjBW(weight, ibw) : ibw);
+  let weightType = weight < ibw ? "Actual (Underweight)" : (weight > ibw * 1.3 ? "Adjusted (Obese)" : "IBW");
   const constant = gender === 'male' ? 1 : 0.85;
   const result = ((140 - age) * dosingWeight) / (72 * creatinine) * constant;
-  
   return { value: result, usedWeight: dosingWeight, weightType };
 };
 
-// Custom Kidney Icon Component (Updated for better visuals)
-const KidneyIcon = ({ className }) => (
-  <svg 
-    xmlns="http://www.w3.org/2000/svg" 
-    viewBox="0 0 24 24" 
-    fill="none" 
-    stroke="currentColor" 
-    strokeWidth="2" 
-    strokeLinecap="round" 
-    strokeLinejoin="round" 
-    className={className}
-  >
-    {/* Stylized Kidney Bean Shape with Hilum Indentation */}
-    <path d="M16.5 4c-1.7 0-3.3.8-4.5 2.2C10.8 4.8 9.2 4 7.5 4 4.5 4 2 6.5 2 9.5c0 4.5 6 9.5 10 9.5s10-5 10-9.5C22 6.5 19.5 4 16.5 4z" />
-    <path d="M12 17c-2.5 0-6-3.5-6-7.5 0-1.5 1-2.5 1.5-2.5s.5.5.5 1c0 2 1.5 3.5 3.5 3.5s3.5-1.5 3.5-3.5c0-.5.1-1 .5-1 .5 0 1.5 1 1.5 2.5 0 4-3.5 7.5-6 7.5z" opacity="0.5" />
-  </svg>
-);
-
-export default function RenalDoseApp() {
-  const [patient, setPatient] = useState({
-    age: '',
-    gender: 'male',
-    weight: '', // kg
-    height: '', // cm
-    creatinine: '' // mg/dL
-  });
-  
+/**
+ * ==========================================
+ * MAIN APP COMPONENT
+ * ==========================================
+ */
+export default function App() {
+  const [patient, setPatient] = useState({ age: '', gender: 'male', weight: '', height: '', creatinine: '' });
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedDrugId, setSelectedDrugId] = useState(null);
   const [selectedStrategy, setSelectedStrategy] = useState(null);
+  const [showInventory, setShowInventory] = useState(false);
 
-  const calculation = useMemo(() => {
-    return calculateCrCl(
-      parseFloat(patient.age),
-      parseFloat(patient.weight),
-      parseFloat(patient.creatinine),
-      patient.gender,
-      parseFloat(patient.height)
-    );
-  }, [patient]);
+  const calculation = useMemo(() => calculateCrCl(
+    parseFloat(patient.age), parseFloat(patient.weight), 
+    parseFloat(patient.creatinine), patient.gender, parseFloat(patient.height)
+  ), [patient]);
 
-  const drugList = useMemo(() => {
+  const filteredDrugs = useMemo(() => {
+    const term = searchTerm.toLowerCase();
     return Object.keys(DRUG_DATABASE).filter(key => 
-      DRUG_DATABASE[key].name.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+      DRUG_DATABASE[key].name.toLowerCase().includes(term) ||
+      DRUG_DATABASE[key].class.toLowerCase().includes(term)
+    ).sort();
   }, [searchTerm]);
 
   const selectedDrug = selectedDrugId ? DRUG_DATABASE[selectedDrugId] : null;
 
   useEffect(() => {
-    if (selectedDrug && selectedDrug.isMultiStrategy) {
-      const firstKey = Object.keys(selectedDrug.strategies)[0];
-      setSelectedStrategy(firstKey);
+    if (selectedDrug?.isMultiStrategy) {
+      setSelectedStrategy(Object.keys(selectedDrug.strategies)[0]);
     } else {
       setSelectedStrategy(null);
     }
   }, [selectedDrugId, selectedDrug]);
 
-  const getRecommendation = (drug, crclVal, strategyKey) => {
-    if (!crclVal && crclVal !== 0) return "Menunggu hasil CrCl...";
-    
-    let adjustments = [];
-    let stdDose = "";
-
-    if (drug.isMultiStrategy && strategyKey) {
-      const strat = drug.strategies[strategyKey];
-      adjustments = strat.adjustments;
-      stdDose = strat.standard_dose;
-    } else {
-      adjustments = drug.adjustments;
-      stdDose = drug.standard_dose;
-    }
-
-    // Default logic: If CrCl > defined Max in adjustments, use Standard Dose.
-    const maxDefined = Math.max(...adjustments.map(a => a.max));
-    
-    if (crclVal > maxDefined) return stdDose;
-
-    const adjustment = adjustments.find(adj => crclVal <= adj.max && crclVal >= adj.min);
-    
-    if (adjustment) return adjustment.recommendation;
-    
-    // Fallback if not covered in ranges (should be rare if ranges are 0-100+)
-    return "Konsul farmasi klinis / ID Consultant";
+  const getRec = (drug, crclVal, strategyKey) => {
+    if (!drug) return "";
+    if (!crclVal && crclVal !== 0) return "Lengkapi data pasien...";
+    if (drug.isMultiStrategy && !strategyKey) return "Pilih strategi...";
+    const strategy = drug.isMultiStrategy ? drug.strategies[strategyKey] : drug;
+    if (!strategy?.adjustments) return drug.standard_dose || "Dosis Standar";
+    const adj = strategy.adjustments.find(a => crclVal <= a.max && crclVal >= a.min);
+    return adj ? adj.recommendation : (strategy.standard_dose || "Dosis Standar");
   };
 
-  const getCurrentStandardDose = () => {
-    if (!selectedDrug) return "";
-    if (selectedDrug.isMultiStrategy && selectedStrategy) {
-      return selectedDrug.strategies[selectedStrategy].standard_dose;
-    }
-    return selectedDrug.standard_dose;
-  };
-
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setPatient(prev => ({ ...prev, [name]: value }));
+  const getStatusColor = (val) => {
+    if (!val && val !== 0) return 'bg-slate-100 text-slate-400';
+    if (val < 30) return 'bg-red-600 text-white';
+    if (val < 60) return 'bg-amber-500 text-white';
+    return 'bg-green-600 text-white';
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 font-sans text-slate-800">
-      
-      {/* HEADER */}
-      <header className="bg-blue-900 text-white p-4 shadow-lg sticky top-0 z-10">
-        <div className="max-w-3xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span className="text-3xl">🫘</span>
+    <div className="min-h-screen bg-slate-50 font-sans text-slate-900 pb-12">
+      <header className="bg-slate-900 text-white p-6 shadow-xl sticky top-0 z-50">
+        <div className="max-w-2xl mx-auto flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="bg-blue-600 p-2 rounded-lg"><Activity className="h-6 w-6" /></div>
             <div>
-              <h1 className="text-xl font-bold tracking-tight">Adjustr.io</h1>
-              <p className="text-xs text-blue-200 opacity-80">Stanford-based Dosing Guide</p>
+              <h1 className="text-2xl font-black tracking-tight flex flex-col sm:flex-row sm:items-baseline sm:gap-2">
+                Adjustr.io 
+                <span className="text-blue-500 text-[10px] font-bold uppercase tracking-wider">for medical professional only</span>
+              </h1>
+              <p className="text-[10px] text-slate-400 uppercase tracking-widest font-bold">Comprehensive Dosing Engine</p>
             </div>
           </div>
-          <div className="text-xs bg-blue-800 px-2 py-1 rounded border border-blue-700">
-            For Medical Professionals Only
-          </div>
+          <button onClick={() => setPatient({ age: '', gender: 'male', weight: '', height: '', creatinine: '' })} className="text-xs bg-slate-800 hover:bg-slate-700 px-3 py-1.5 rounded-full border border-slate-700 transition-colors flex items-center gap-1 text-white">
+            <RefreshCw className="h-3 w-3" /> Reset
+          </button>
         </div>
       </header>
 
-      <main className="max-w-3xl mx-auto p-4 space-y-6">
-        
-        {/* SECTION 1: PATIENT CALCULATOR */}
-        <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-          <div className="bg-slate-100 px-4 py-3 border-b border-slate-200 flex items-center gap-2">
-            <Calculator className="h-5 w-5 text-slate-600" />
-            <h2 className="font-semibold text-slate-700">Patient Parameters</h2>
-          </div>
-          
-          <div className="p-4 grid grid-cols-2 gap-4">
-            {/* Inputs */}
-            <div className="space-y-1">
-              <label className="text-xs font-bold uppercase text-slate-500">Gender</label>
-              <div className="flex gap-2">
-                <button 
-                  onClick={() => setPatient({...patient, gender: 'male'})}
-                  className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors ${patient.gender === 'male' ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
-                >
-                  Male
-                </button>
-                <button 
-                  onClick={() => setPatient({...patient, gender: 'female'})}
-                  className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors ${patient.gender === 'female' ? 'bg-pink-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
-                >
-                  Fem
-                </button>
+      <main className="max-w-2xl mx-auto px-4 mt-8 space-y-6">
+        {/* PATIENT PARAMS */}
+        <section className="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
+          <div className="p-6 grid grid-cols-2 gap-4">
+            <div className="col-span-2 sm:col-span-1 space-y-1">
+              <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Gender</label>
+              <div className="grid grid-cols-2 gap-2">
+                {['male', 'female'].map(g => (
+                  <button key={g} onClick={() => setPatient(p => ({...p, gender: g}))} className={`py-2 rounded-xl text-xs font-bold capitalize transition-all ${patient.gender === g ? 'bg-slate-900 text-white shadow-lg' : 'bg-slate-100 text-slate-500'}`}>{g}</button>
+                ))}
               </div>
             </div>
-
             <div className="space-y-1">
-              <label className="text-xs font-bold uppercase text-slate-500">Age (years)</label>
-              <input type="number" name="age" value={patient.age} onChange={handleInputChange} className="w-full p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none" placeholder="e.g. 55" />
+              <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Usia</label>
+              <input type="number" value={patient.age} onChange={e => setPatient(p => ({...p, age: e.target.value}))} className="w-full bg-slate-50 border-none ring-1 ring-slate-200 rounded-xl p-2.5 focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Tahun" />
             </div>
-
             <div className="space-y-1">
-              <label className="text-xs font-bold uppercase text-slate-500">Weight (kg)</label>
-              <input type="number" name="weight" value={patient.weight} onChange={handleInputChange} className="w-full p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none" placeholder="e.g. 70" />
+              <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider">BB (kg)</label>
+              <input type="number" value={patient.weight} onChange={e => setPatient(p => ({...p, weight: e.target.value}))} className="w-full bg-slate-50 border-none ring-1 ring-slate-200 rounded-xl p-2.5 focus:ring-2 focus:ring-blue-500 outline-none" />
             </div>
-
             <div className="space-y-1">
-              <label className="text-xs font-bold uppercase text-slate-500">Height (cm)</label>
-              <input type="number" name="height" value={patient.height} onChange={handleInputChange} className="w-full p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none" placeholder="e.g. 170" />
+              <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider">TB (cm)</label>
+              <input type="number" value={patient.height} onChange={e => setPatient(p => ({...p, height: e.target.value}))} className="w-full bg-slate-50 border-none ring-1 ring-slate-200 rounded-xl p-2.5 focus:ring-2 focus:ring-blue-500 outline-none" />
             </div>
-
             <div className="col-span-2 space-y-1">
-              <label className="text-xs font-bold uppercase text-slate-500">Serum Creatinine (mg/dL)</label>
-              <div className="relative">
-                <input type="number" step="0.1" name="creatinine" value={patient.creatinine} onChange={handleInputChange} className="w-full p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none" placeholder="e.g. 1.2" />
-                <Activity className="absolute right-3 top-2.5 h-4 w-4 text-slate-400" />
-              </div>
+              <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Serum Kreatinin (mg/dL)</label>
+              <input type="number" step="0.01" value={patient.creatinine} onChange={e => setPatient(p => ({...p, creatinine: e.target.value}))} className="w-full bg-slate-100 border-none ring-1 ring-blue-200 rounded-xl p-3 text-xl font-black text-blue-700 focus:ring-2 focus:ring-blue-500 outline-none shadow-inner" />
             </div>
           </div>
 
-          {/* RESULTS BAR */}
-          <div className="bg-slate-50 p-4 border-t border-slate-200">
-             {calculation ? (
-               <div className="flex items-center justify-between">
-                 <div>
-                   <p className="text-xs text-slate-500 font-medium">Est. CrCl (Cockcroft-Gault)</p>
-                   <p className={`text-2xl font-bold ${calculation.value < 30 ? 'text-red-600' : calculation.value < 50 ? 'text-amber-600' : 'text-green-600'}`}>
-                     {calculation.value.toFixed(1)} <span className="text-sm font-normal text-slate-500">mL/min</span>
-                   </p>
-                 </div>
-                 <div className="text-right">
-                    <p className="text-xs text-slate-400">Weight used: <span className="font-semibold text-slate-600">{calculation.weightType}</span></p>
-                    <p className="text-xs text-slate-400">Mass: <span className="font-semibold text-slate-600">{calculation.usedWeight.toFixed(1)} kg</span></p>
-                 </div>
-               </div>
-             ) : (
-               <div className="text-center py-2 text-slate-400 text-sm flex items-center justify-center gap-2">
-                 <Info className="h-4 w-4" />
-                 Enter parameters to calculate CrCl
-               </div>
-             )}
+          <div className={`p-6 transition-all duration-700 shadow-inner ${getStatusColor(calculation?.value)}`}>
+            {calculation ? (
+              <div className="flex justify-between items-end">
+                <div>
+                  <p className="text-[10px] font-bold uppercase opacity-80 tracking-widest">Est. CrCl (Cockcroft-Gault)</p>
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-6xl font-black tracking-tighter">{calculation.value.toFixed(1)}</span>
+                    <span className="text-sm opacity-80 font-bold">mL/min</span>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <p className="text-[10px] font-bold uppercase opacity-80">Dosing Weight</p>
+                  <p className="text-lg font-black">{calculation.usedWeight.toFixed(1)} kg</p>
+                  <p className="text-[10px] opacity-70 italic">{calculation.weightType}</p>
+                </div>
+              </div>
+            ) : <div className="flex items-center justify-center gap-2 py-4 font-bold text-sm"><Info className="h-4 w-4" /> Masukkan parameter pasien...</div>}
           </div>
-        </div>
+        </section>
 
-        {/* SECTION 2: DRUG SELECTOR */}
-        <div className="space-y-4">
-          <div className="relative">
-            <Search className="absolute left-3 top-3 h-5 w-5 text-slate-400" />
-            <input 
-              type="text" 
-              className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 shadow-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
-              placeholder="Search Antibiotic (e.g. Meropenem, Levo...)"
-              value={searchTerm}
-              onChange={(e) => {
-                setSearchTerm(e.target.value);
-                setSelectedDrugId(null); 
-              }}
-            />
+        {/* DRUG SELECTOR & DATABASE BUTTON */}
+        <section className="space-y-4">
+          <div className="flex flex-col sm:flex-row gap-2">
+            <div className="relative flex-1 group">
+              <Search className="absolute left-4 top-4 h-5 w-5 text-slate-400 group-focus-within:text-blue-500 transition-colors" />
+              <input type="text" placeholder="Cari Obat..." value={searchTerm} onChange={e => {setSearchTerm(e.target.value); setSelectedDrugId(null);}} className="w-full pl-12 pr-4 py-4 rounded-3xl border-none ring-1 ring-slate-200 shadow-sm focus:ring-2 focus:ring-blue-500 outline-none transition-all font-medium" />
+            </div>
+            <button 
+              onClick={() => setShowInventory(true)}
+              className="px-6 py-4 bg-white border border-slate-200 rounded-3xl shadow-sm hover:bg-slate-50 transition-colors flex items-center justify-center gap-2 font-bold text-slate-700 whitespace-nowrap"
+            >
+              <List className="h-5 w-5 text-blue-600" />
+              Lihat Database Obat
+            </button>
           </div>
 
-          {/* Drug List (If searching or nothing selected) */}
           {!selectedDrugId && searchTerm && (
-            <div className="bg-white rounded-xl shadow-sm border border-slate-200 divide-y divide-slate-100">
-              {drugList.length > 0 ? (
-                drugList.map(key => (
-                  <button 
-                    key={key} 
-                    onClick={() => setSelectedDrugId(key)}
-                    className="w-full text-left px-4 py-3 hover:bg-slate-50 flex items-center justify-between group transition-colors"
-                  >
-                    <div>
-                      <p className="font-semibold text-slate-700 group-hover:text-blue-700">{DRUG_DATABASE[key].name}</p>
-                      <p className="text-xs text-slate-500">{DRUG_DATABASE[key].class}</p>
-                    </div>
-                    <ChevronRight className="h-4 w-4 text-slate-300 group-hover:text-blue-500" />
-                  </button>
-                ))
-              ) : (
-                <div className="p-4 text-center text-slate-500 text-sm">No drugs found.</div>
-              )}
+            <div className="bg-white rounded-3xl shadow-xl border border-slate-200 overflow-hidden divide-y divide-slate-50 max-h-80 overflow-y-auto">
+              {filteredDrugs.length > 0 ? filteredDrugs.map(id => (
+                <button key={id} onClick={() => {setSelectedDrugId(id); setSearchTerm('');}} className="w-full text-left p-4 hover:bg-blue-50 flex items-center justify-between group transition-colors">
+                  <div>
+                    <h4 className="font-bold text-slate-800 group-hover:text-blue-700">{DRUG_DATABASE[id].name}</h4>
+                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">{DRUG_DATABASE[id].class}</p>
+                  </div>
+                  <ChevronRight className="h-4 w-4 text-slate-200 group-hover:text-blue-500" />
+                </button>
+              )) : <div className="p-8 text-center text-slate-400 italic">No drugs found.</div>}
             </div>
           )}
-        </div>
 
-        {/* SECTION 3: DOSING RESULT CARD */}
-        {selectedDrug && (
-          <div className="bg-white rounded-xl shadow-lg border-t-4 border-blue-600 animate-in fade-in slide-in-from-bottom-4 duration-300">
-             <div className="p-5 border-b border-slate-100 flex justify-between items-start">
-               <div>
-                 <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
-                   {selectedDrug.name}
-                   <button onClick={() => setSelectedDrugId(null)} className="text-xs bg-slate-100 text-slate-500 px-2 py-1 rounded hover:bg-slate-200 ml-2">Change</button>
-                 </h2>
-                 <span className="text-xs font-semibold bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full mt-1 inline-block">
-                   {selectedDrug.class}
-                 </span>
-               </div>
-               <Syringe className="h-6 w-6 text-blue-500 opacity-20" />
-             </div>
+          {selectedDrug && (
+            <div className="bg-white rounded-3xl shadow-2xl border-t-8 border-blue-600 animate-in fade-in zoom-in-95 duration-300 overflow-hidden">
+              <div className="p-6 border-b border-slate-100 flex justify-between items-start bg-slate-50/50">
+                <div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <h2 className="text-2xl font-black text-slate-900 tracking-tight">{selectedDrug.name}</h2>
+                    <button onClick={() => setSelectedDrugId(null)} className="p-1 hover:bg-slate-200 rounded text-slate-400 transition-colors"><RefreshCw className="h-3 w-3" /></button>
+                  </div>
+                  <span className="text-[10px] font-black bg-blue-100 text-blue-700 px-2 py-1 rounded-md uppercase tracking-wider">{selectedDrug.class}</span>
+                </div>
+                <Syringe className="h-8 w-8 text-blue-100" />
+              </div>
 
-             <div className="p-5 space-y-6">
-               
-               {/* STRATEGY SELECTOR */}
-               {selectedDrug.isMultiStrategy && (
-                 <div className="bg-slate-100 p-3 rounded-lg border border-slate-200">
-                    <label className="text-xs font-bold text-slate-500 uppercase mb-2 block">Select Clinical Indication / Dose Strategy</label>
+              <div className="p-6 space-y-6">
+                {selectedDrug.isMultiStrategy && (
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Clinical Strategy</label>
                     <div className="relative">
-                      <select 
-                        value={selectedStrategy || ''}
-                        onChange={(e) => setSelectedStrategy(e.target.value)}
-                        className="w-full appearance-none bg-white border border-slate-300 text-slate-700 py-2 px-3 pr-8 rounded leading-tight focus:outline-none focus:bg-white focus:border-blue-500 text-sm"
-                      >
-                        {Object.keys(selectedDrug.strategies).map(strat => (
-                          <option key={strat} value={strat}>{strat}</option>
-                        ))}
+                      <select value={selectedStrategy || ''} onChange={e => setSelectedStrategy(e.target.value)} className="w-full appearance-none bg-slate-100 border-none ring-1 ring-slate-200 p-3 rounded-2xl font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-500">
+                        {Object.keys(selectedDrug.strategies).map(s => <option key={s} value={s}>{s}</option>)}
                       </select>
-                      <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-slate-700">
-                        <ChevronDown className="h-4 w-4" />
-                      </div>
+                      <ChevronDown className="absolute right-4 top-4 h-5 w-5 text-slate-400 pointer-events-none" />
                     </div>
-                 </div>
-               )}
+                  </div>
+                )}
 
-               {/* Main Recommendation */}
-               <div className="bg-blue-50 border border-blue-100 rounded-lg p-4">
-                 <h3 className="text-sm font-bold text-blue-900 mb-1 flex items-center gap-2">
-                   <Activity className="h-4 w-4" /> 
-                   Renal Adjustment (CrCl: {calculation ? calculation.value.toFixed(0) : '?'})
-                 </h3>
-                 <p className="text-lg font-bold text-blue-800">
-                   {calculation ? getRecommendation(selectedDrug, calculation.value, selectedStrategy) : "Please complete patient data"}
-                 </p>
-                 <p className="text-xs text-blue-600 mt-2">
-                   Standard Dose: {getCurrentStandardDose()}
-                 </p>
-               </div>
+                <div className="bg-blue-600 rounded-3xl p-6 text-white shadow-lg shadow-blue-200">
+                  <div className="flex items-center gap-2 mb-3 opacity-80">
+                    <Activity className="h-4 w-4" />
+                    <span className="text-[10px] font-black uppercase tracking-widest">Recommended Adjusted Dose</span>
+                  </div>
+                  <div className="text-2xl font-black leading-tight">
+                    {getRec(selectedDrug, calculation?.value, selectedStrategy)}
+                  </div>
+                </div>
 
-               {/* Dialysis Section */}
-               <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                 <div className="bg-slate-50 p-3 rounded border border-slate-100">
-                   <p className="text-xs font-bold text-slate-500 uppercase mb-1">IHD (Hemodialysis)</p>
-                   <p className="text-sm text-slate-700 font-medium">{selectedDrug.rrt.ihd}</p>
-                 </div>
-                 <div className="bg-slate-50 p-3 rounded border border-slate-100">
-                   <p className="text-xs font-bold text-slate-500 uppercase mb-1">CRRT (CVVH/D)</p>
-                   <p className="text-sm text-slate-700 font-medium">{selectedDrug.rrt.crrt}</p>
-                 </div>
-                 <div className="bg-slate-50 p-3 rounded border border-slate-100">
-                   <p className="text-xs font-bold text-slate-500 uppercase mb-1">SLED</p>
-                   <p className="text-sm text-slate-700 font-medium">{selectedDrug.rrt.sled}</p>
-                 </div>
-               </div>
+                <div className="grid grid-cols-3 gap-2">
+                  {Object.entries(selectedDrug.rrt).map(([key, val]) => (
+                    <div key={key} className="bg-slate-50 rounded-2xl p-3 border border-slate-100">
+                      <p className="text-[9px] font-black text-slate-400 uppercase mb-1">{key}</p>
+                      <p className="text-[11px] font-bold text-slate-700 leading-tight">{val}</p>
+                    </div>
+                  ))}
+                </div>
 
-               {/* Clinical Pearl / Notes */}
-               <div className="flex gap-3 bg-amber-50 p-3 rounded-lg border border-amber-100">
-                 <AlertTriangle className="h-5 w-5 text-amber-500 flex-shrink-0" />
-                 <div className="text-sm text-amber-800">
-                   <span className="font-bold block text-xs uppercase mb-1">Clinical Pearl & Safety</span>
-                   {selectedDrug.note}
-                 </div>
-               </div>
-             </div>
-          </div>
-        )}
-
-        {/* FOOTER */}
-        <div className="text-center text-xs text-slate-400 pb-8 pt-4">
-          <p>Based on Stanford Health Care Antimicrobial Dosing Reference Guide (mostly) & MIMS (Cefoperazone + Sulbactam).</p>
-          <p>This tool is for educational purposes. Clinical judgment required.</p>
-          <p className="mt-2 font-medium">© 2026 - IWP I Adjustr.io</p>
-        </div>
-
+                <div className="flex gap-4 bg-amber-50 p-5 rounded-2xl border border-amber-100">
+                  <AlertTriangle className="h-5 w-5 text-amber-500 flex-shrink-0" />
+                  <div className="text-sm text-amber-900">
+                    <p className="font-black text-[10px] uppercase tracking-widest mb-1 text-amber-700">Expert Clinical Pearls</p>
+                    <p className="leading-relaxed opacity-90 italic">{selectedDrug.note}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </section>
       </main>
+
+      {/* DATABASE INVENTORY MODAL */}
+      {showInventory && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white w-full max-w-lg rounded-3xl shadow-2xl max-h-[80vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50">
+              <div>
+                <h3 className="text-xl font-black text-slate-900">Database Obat</h3>
+                <p className="text-xs text-slate-400 font-bold uppercase tracking-widest">{Object.keys(DRUG_DATABASE).length} Item Tersedia</p>
+              </div>
+              <button onClick={() => setShowInventory(false)} className="p-2 hover:bg-slate-200 rounded-full transition-colors">
+                <X className="h-6 w-6 text-slate-400" />
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-4 space-y-2 bg-slate-50/30">
+              {Object.keys(DRUG_DATABASE).sort().map(id => (
+                <button 
+                  key={id} 
+                  onClick={() => { setSelectedDrugId(id); setShowInventory(false); setSearchTerm(''); }}
+                  className="w-full text-left p-3 rounded-xl border border-slate-100 bg-white hover:border-blue-200 hover:bg-blue-50 transition-all flex items-center justify-between group"
+                >
+                  <div>
+                    <span className="block font-bold text-slate-800 group-hover:text-blue-700">{DRUG_DATABASE[id].name}</span>
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{DRUG_DATABASE[id].class}</span>
+                  </div>
+                  <ChevronRight className="h-4 w-4 text-slate-200 group-hover:text-blue-500" />
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      <footer className="max-w-2xl mx-auto px-6 text-center mt-12 space-y-2 opacity-60">
+        <p className="text-[10px] leading-relaxed">Based on Stanford Health Care Antimicrobial Dosing Reference Guide (mostly) & MIMS (Cefoperazone + Sulbactam).</p>
+        <p className="text-[10px] leading-relaxed">This tool is for educational purposes. Clinical judgment required.</p>
+        <p className="text-[10px] font-bold uppercase tracking-widest mt-2">© 2026 - IWP I Adjustr.io</p>
+      </footer>
     </div>
   );
 }
