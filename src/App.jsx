@@ -1,272 +1,633 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { 
   Calculator, Search, AlertTriangle, Info, Syringe, 
-  Activity, ChevronRight, RefreshCw, ChevronDown, List, X
+  Activity, RefreshCw, ChevronDown, List, X, ShieldCheck, Pill, Beaker, ChevronRight
 } from 'lucide-react';
 
 /**
  * ==========================================
- * MASTER DATA REPOSITORY (TOTAL 24 DRUGS)
+ * MASTER DATA REPOSITORY (ULTIMATE WARD EDITION)
  * ==========================================
  */
 const DRUG_DATABASE = {
-  // --- PENICILLINS & BLI ---
+  // ==========================================
+  // I. PENICILLINS
+  // ==========================================
   "ampicillin": {
     name: "Ampicillin (IV)",
     class: "Penicillin",
-    note: "ARC (CrCl > 130) berisiko therapeutic failure; pertimbangkan q4h atau Continuous Infusion pada infeksi berat (Meningitis/PJI).",
+    note: "High sodium load. Meningitis requires aggressive dosing.",
     isMultiStrategy: true,
     strategies: {
       "Mild / Uncomplicated": {
         standard_dose: "1 - 2 g IV q6h",
         adjustments: [
-          { max: 500, min: 131, recommendation: "Consider 2 g IV q4h (ARC)" },
-          { max: 130, min: 50.1, recommendation: "1 - 2 g IV q6h" },
-          { max: 50, min: 30, recommendation: "1 - 2 g IV q8h" },
-          { max: 29.9, min: 15, recommendation: "1 - 2 g IV q12h" },
-          { max: 14.9, min: 0, recommendation: "1 - 2 g IV q24h" }
+          { max: 500, min: 50.1, recommendation: "1 - 2 g IV q6h" },
+          { max: 50, min: 10, recommendation: "1 - 2 g IV q6-12h" },
+          { max: 9.9, min: 0, recommendation: "1 - 2 g IV q12-24h" }
         ],
-        rrt: { ihd: "1 - 2 g post-HD", crrt: "2 g q8-12h", sled: "2 g q12h" }
+        rrt: { ihd: "1 - 2 g post-HD", crrt: "2 g q12h" }
       },
-      "Severe (Meningitis/PJI)": {
+      "Meningitis / Endovascular": {
         standard_dose: "2 g IV q4h",
         adjustments: [
           { max: 500, min: 50.1, recommendation: "2 g IV q4h" },
-          { max: 50, min: 30, recommendation: "2 g IV q6h" },
-          { max: 29.9, min: 15, recommendation: "2 g IV q8h" },
-          { max: 14.9, min: 0, recommendation: "2 g IV q12h" }
-        ]
+          { max: 50, min: 10, recommendation: "2 g IV q6h" },
+          { max: 9.9, min: 0, recommendation: "2 g IV q12h" }
+        ],
+        rrt: { ihd: "2 g q12h post-HD", crrt: "2 g q6-8h" }
       }
     }
   },
   "ampicillin-sulbactam": {
     name: "Ampicillin-Sulbactam (IV)",
     class: "Penicillin / BLI",
-    note: "Rasio 2:1 (e.g. 3g = 2g Ampi / 1g Sulb). Untuk Acinetobacter (ABA), target Sulbactam 6-9g per hari sangat krusial.",
+    note: "Dosing based on Ampicillin component (2:1 ratio).",
     isMultiStrategy: true,
     strategies: {
       "Mild Infection": {
         standard_dose: "1.5 g IV q6h",
         adjustments: [
-          { max: 500, min: 30.1, recommendation: "1.5 g IV q6h" },
-          { max: 30, min: 15, recommendation: "1.5 g IV q12h" },
-          { max: 14.9, min: 0, recommendation: "1.5 g IV q24h" }
+          { max: 500, min: 30, recommendation: "1.5 g IV q6h" },
+          { max: 29.9, min: 15, recommendation: "1.5 g IV q12h" },
+          { max: 14.9, min: 5, recommendation: "1.5 g IV q24h" }
         ]
       },
       "Systemic / Severe": {
         standard_dose: "3 g IV q6h",
         adjustments: [
-          { max: 500, min: 30.1, recommendation: "3 g IV q6h" },
-          { max: 30, min: 15, recommendation: "3 g IV q12h" },
-          { max: 14.9, min: 0, recommendation: "1.5 - 3 g IV q24h" }
+          { max: 500, min: 30, recommendation: "3 g IV q6h" },
+          { max: 29.9, min: 15, recommendation: "3 g IV q12h" },
+          { max: 14.9, min: 5, recommendation: "1.5 - 3 g IV q24h" }
         ],
-        rrt: { ihd: "1.5-3g q24h post-HD", crrt: "3g q12h", sled: "3g q24h" }
+        rrt: { ihd: "3 g q24h post-HD", crrt: "3 g q8h" }
       },
-      "Acinetobacter (ABA)": {
+      "Acinetobacter baumanii (High Dose)": {
         standard_dose: "3 g IV q4h",
         adjustments: [
-          { max: 500, min: 50.1, recommendation: "3 g IV q4h" },
-          { max: 50, min: 30.1, recommendation: "3 g IV q6h" },
-          { max: 30, min: 15, recommendation: "3 g IV q8h" },
+          { max: 500, min: 30, recommendation: "3 g IV q4h (Target Sulbactam 9g/day)" },
+          { max: 29.9, min: 15, recommendation: "3 g IV q8h" },
           { max: 14.9, min: 0, recommendation: "3 g IV q12h" }
         ],
-        rrt: { ihd: "3 g q12h post-HD", crrt: "3 g q6h", sled: "3 g q12h" }
+        rrt: { ihd: "3 g q12h post-HD", crrt: "3 g q6h" }
+      }
+    }
+  },
+  "penicillin-g": {
+    name: "Penicillin G (IV)",
+    class: "Penicillin",
+    note: "Neurotoxicity risk (seizures) in renal failure.",
+    isMultiStrategy: true,
+    strategies: {
+      "Neurosyphilis / Meningitis": {
+        standard_dose: "4 million units IV q4h",
+        adjustments: [
+          { max: 500, min: 50, recommendation: "4 MU q4h" },
+          { max: 49.9, min: 10, recommendation: "4 MU q6-8h" },
+          { max: 9.9, min: 0, recommendation: "4 MU q12-18h" }
+        ]
+      },
+      "Endocarditis": {
+        standard_dose: "2 - 3 million units IV q4h",
+        adjustments: [
+          { max: 500, min: 50, recommendation: "2-3 MU q4h" },
+          { max: 49.9, min: 10, recommendation: "2-3 MU q6-8h" },
+          { max: 9.9, min: 0, recommendation: "2-3 MU q12h" }
+        ]
       }
     }
   },
   "piperacillin-tazobactam": {
     name: "Piperacillin-Tazobactam (IV)",
     class: "Penicillin / BLI",
-    note: "Extended infusion (EI) 4-jam disarankan. High clearance (>120): pertimbangkan EI q6h. Synergistic nephrotoxicity dengan Vancomycin.",
+    note: "Extended Infusion (4h) PREFERRED for severe/Pseudomonal infections.",
     isMultiStrategy: true,
     strategies: {
-      "Extended Infusion (4-hr EI)": {
-        standard_dose: "3.375 - 4.5 g q8h (4h EI)",
+      "Extended Infusion (General/CF/PsA/HAP)": {
+        standard_dose: "4.5 g IV q8h (4h EI)",
         adjustments: [
-          { max: 500, min: 20.1, recommendation: "3.375 - 4.5 g IV q8h (4h EI). [SDD: 4.5g]" },
-          { max: 20, min: 0, recommendation: "3.375 g IV q12h (4h EI)" }
+          { max: 500, min: 20.1, recommendation: "4.5 g IV q8h (over 4h)" },
+          { max: 20, min: 0, recommendation: "3.375 g IV q12h (over 4h)" }
         ],
-        rrt: { ihd: "2.25g q12h post-HD", crrt: "4.5g q8h (EI)", sled: "3.375g q12h (EI)" }
+        rrt: { ihd: "3.375 g q12h (EI)", crrt: "4.5 g q8h (EI)" }
       },
-      "Intermittent (30-min) - Severe": {
+      "Intermittent 30-min (General)": {
+        standard_dose: "3.375 g IV q6h",
+        adjustments: [
+          { max: 500, min: 40.1, recommendation: "3.375 g IV q6h" },
+          { max: 40, min: 20, recommendation: "2.25 g IV q6h" },
+          { max: 19.9, min: 0, recommendation: "2.25 g IV q8h" }
+        ]
+      },
+      "Intermittent 30-min (Severe/Sepsis)": {
         standard_dose: "4.5 g IV q6h",
         adjustments: [
           { max: 500, min: 40.1, recommendation: "4.5 g IV q6h" },
           { max: 40, min: 20, recommendation: "3.375 g IV q6h" },
           { max: 19.9, min: 0, recommendation: "2.25 g IV q6h" }
-        ]
+        ],
+        rrt: { ihd: "2.25 g q12h post-HD" }
       }
     }
   },
 
-  // --- CARBAPENEMS ---
-  "meropenem": {
-    name: "Meropenem (IV)",
-    class: "Carbapenem",
-    note: "Administered over a 3-hr extended infusion. CrCl >= 130: consider 2g q8h EI. Interaksi fatal dengan Valproat.",
+  // ==========================================
+  // II. CEPHALOSPORINS
+  // ==========================================
+  "cefazolin": {
+    name: "Cefazolin (IV)",
+    class: "Cephalosporin (1st Gen)",
+    note: "Drug of choice for MSSA.",
     isMultiStrategy: true,
     strategies: {
-      "Usual (FN, PNA, PsA)": {
-        standard_dose: "1 g IV q8h (3h EI)",
+      "Mild - Moderate": {
+        standard_dose: "1 g q8h",
         adjustments: [
-          { max: 500, min: 50.1, recommendation: "1 g IV q8h (3h EI)" },
-          { max: 50, min: 26, recommendation: "1 g IV q12h (3h EI)" },
-          { max: 25.9, min: 10, recommendation: "500 mg IV q12h (3h EI)" },
-          { max: 9.9, min: 0, recommendation: "500 mg IV q24h (3h EI)" }
-        ],
-        rrt: { ihd: "500 mg q24h post-HD", crrt: "1 g q8h (3h EI)", sled: "1 g q12h (3h EI)" }
+          { max: 500, min: 35, recommendation: "1 g q8h" },
+          { max: 34.9, min: 11, recommendation: "1 g q12h" },
+          { max: 10.9, min: 0, recommendation: "1 g q24h" }
+        ]
       },
-      "CNS / CF / Meningitis": {
-        standard_dose: "2 g IV q8h (3h EI)",
+      "Severe (Endocarditis/Bacteremia)": {
+        standard_dose: "2 g q8h",
         adjustments: [
-          { max: 500, min: 50.1, recommendation: "2 g IV q8h (3h EI)" },
-          { max: 50, min: 26, recommendation: "2 g IV q12h (3h EI)" },
-          { max: 25.9, min: 10, recommendation: "1 g IV q12h (3h EI)" },
-          { max: 9.9, min: 0, recommendation: "1 g IV q24h (3h EI)" }
+          { max: 500, min: 35, recommendation: "2 g q8h" },
+          { max: 34.9, min: 11, recommendation: "2 g q12h" },
+          { max: 10.9, min: 0, recommendation: "1 - 2 g q24h" }
         ],
-        rrt: { ihd: "1 g q24h post-HD", crrt: "2 g q12h (3h EI)", sled: "1 g q12h (3h EI)" }
+        rrt: { ihd: "2 g post-HD", crrt: "2 g q12h" }
       }
     }
   },
-
-  // --- CEPHALOSPORINS ---
+  "ceftriaxone": {
+    name: "Ceftriaxone (IV)",
+    class: "Cephalosporin (3rd Gen)",
+    note: "NO RENAL ADJUSTMENT. Dual elimination. Meningitis dose is higher.",
+    isMultiStrategy: true,
+    strategies: {
+      "Standard Dose": {
+        standard_dose: "1 - 2 g q24h",
+        adjustments: [{ max: 500, min: 0, recommendation: "No Adjustment (1-2 g q24h)" }]
+      },
+      "Meningitis": {
+        standard_dose: "2 g q12h",
+        adjustments: [{ max: 500, min: 0, recommendation: "2 g q12h (No Adjustment)" }]
+      }
+    }
+  },
   "ceftazidime": {
     name: "Ceftazidime (IV)",
     class: "Cephalosporin (3rd Gen)",
-    note: "Anti-pseudomonal. Grids mendalam pada ESRD (sampai CrCl < 5) utk mitigasi neurotoksisitas.",
+    note: "Neurotoxicity risk in ESRD. Deep renal adjustment grid.",
     isMultiStrategy: true,
     strategies: {
-      "Usual Regimen": {
+      "Usual Dose": {
         standard_dose: "1 - 2 g IV q8h",
         adjustments: [
           { max: 500, min: 50.1, recommendation: "1 - 2 g IV q8h" },
-          { max: 50, min: 30.1, recommendation: "1 - 2 g IV q12h" },
-          { max: 30, min: 16, recommendation: "1 - 2 g IV q24h" },
+          { max: 50, min: 30, recommendation: "1 - 2 g IV q12h" },
+          { max: 29.9, min: 16, recommendation: "1 - 2 g IV q24h" },
           { max: 15.9, min: 6, recommendation: "0.5 - 1 g IV q24h" },
           { max: 5.9, min: 0, recommendation: "0.5 g IV q24h" }
         ],
-        rrt: { ihd: "0.5-1g post-HD", crrt: "2g load, 1g q8h", sled: "1g post-SLED" }
+        rrt: { 
+          ihd: "Dose daily (0.5-1g) after HD on HD days. Alt: 1-2g q48-72h or 1g post-HD TIW", 
+          crrt: "2 g load, then 1 g q8h (or 2g q12h)" 
+        }
       },
-      "Severe Regimen": {
+      "Severe Dose": {
         standard_dose: "2 g IV q8h",
         adjustments: [
           { max: 500, min: 50.1, recommendation: "2 g IV q8h" },
-          { max: 50, min: 30.1, recommendation: "1 - 2 g IV q12h" },
-          { max: 30, min: 16, recommendation: "2 g IV q24h" },
+          { max: 50, min: 30, recommendation: "1 - 2 g IV q12h" },
+          { max: 29.9, min: 16, recommendation: "1 - 2 g IV q24h" },
           { max: 15.9, min: 6, recommendation: "0.5 - 1 g IV q24h" },
           { max: 5.9, min: 0, recommendation: "0.5 g IV q24h" }
-        ]
+        ],
+        rrt: { 
+          ihd: "Dose daily (0.5-1g) after HD on HD days", 
+          crrt: "2 g load, then 1 g q8h" 
+        }
       }
     }
   },
   "cefepime": {
     name: "Cefepime (IV)",
     class: "Cephalosporin (4th Gen)",
-    note: "EI (4h) mandatory. Target CrCl grid: >60, 30-60, 11-29, <10.",
+    note: "High neurotoxicity risk in CKD. 4h EI preferred for severe.",
     isMultiStrategy: true,
     strategies: {
-      "General Infection": {
-        standard_dose: "1 g q8h or 2 g q12h (4h EI)",
+      "General / UTI": {
+        standard_dose: "1 g IV q12h",
         adjustments: [
-          { max: 500, min: 61, recommendation: "1 g q8h or 2 g q12h (4h EI)" },
-          { max: 60, min: 30, recommendation: "1 g q12h or 2 g q24h (4h EI)" },
-          { max: 29.9, min: 11, recommendation: "1 g q24h (4h EI)" },
-          { max: 10.9, min: 0, recommendation: "500 mg q24h (4h EI)" }
+          { max: 500, min: 60.1, recommendation: "1 g IV q12h" },
+          { max: 60, min: 30, recommendation: "1 g IV q24h" },
+          { max: 29.9, min: 11, recommendation: "500 mg IV q24h" },
+          { max: 10.9, min: 0, recommendation: "250 mg IV q24h" }
         ]
       },
-      "Severe / PsA / CNS": {
-        standard_dose: "2 g q8h (4h EI)",
+      "Severe / PsA / Febrile Neutropenia": {
+        standard_dose: "2 g IV q8h (4h EI)",
         adjustments: [
-          { max: 500, min: 61, recommendation: "2 g q8h (4h EI)" },
-          { max: 60, min: 30, recommendation: "2 g q12h (4h EI)" },
-          { max: 29.9, min: 11, recommendation: "1 g q12h (4h EI)" },
-          { max: 10.9, min: 0, recommendation: "1 g q24h (4h EI)" }
-        ]
+          { max: 500, min: 60.1, recommendation: "2 g IV q8h (4h EI)" },
+          { max: 60, min: 30, recommendation: "2 g IV q12h" },
+          { max: 29.9, min: 11, recommendation: "2 g IV q24h" },
+          { max: 10.9, min: 0, recommendation: "1 g IV q24h" }
+        ],
+        rrt: { ihd: "1 g post-HD", crrt: "2 g q12h" }
       }
     }
   },
   "cefoperazone-sulbactam": {
     name: "Cefoperazone-Sulbactam (IV)",
     class: "Cephalosporin (3rd Gen) / BLI",
-    note: "MIMS Logic: CrCl < 15 max Sulbactam 1g/hari. CrCl 15-30 max Sulbactam 2g/hari. Wajib POST-HD.",
+    note: "MIMS Logic. CrCl < 15: Max Sulbactam 1g/day.",
     isMultiStrategy: true,
     strategies: {
-      "Severe / Refractory (Ratio 1:1)": {
-        standard_dose: "Up to 8 g (4g/4g) daily",
+      "Standard (1:1 Ratio)": {
+        standard_dose: "2 - 4 g daily (Total)",
         adjustments: [
-          { max: 500, min: 30.1, recommendation: "4 g (2g/2g) IV q12h (Max Sulb 4g/day)" },
-          { max: 30, min: 15, recommendation: "Max 1 g Sulbactam q12h -> 2 g (1g/1g) IV q12h" },
-          { max: 14.99, min: 0, recommendation: "Max 0.5 g Sulbactam q12h -> 1 g (0.5g/0.5g) IV q12h" }
-        ]
+          { max: 500, min: 30.1, recommendation: "2-4 g daily in divided doses" },
+          { max: 30, min: 15, recommendation: "Max 1 g Sulbactam q12h" },
+          { max: 14.9, min: 0, recommendation: "Max 0.5 g Sulbactam q12h" }
+        ],
+        rrt: { ihd: "Dose Post-HD" }
       }
     }
   },
 
-  // --- ANTIVIRALS ---
+  // ==========================================
+  // III. CARBAPENEMS
+  // ==========================================
+  "meropenem": {
+    name: "Meropenem (IV)",
+    class: "Carbapenem",
+    note: "3-hr EI recommended.",
+    isMultiStrategy: true,
+    strategies: {
+      "Usual (FN, PNA, Intra-abd)": {
+        standard_dose: "1 g IV q8h",
+        adjustments: [
+          { max: 500, min: 50.1, recommendation: "1 g IV q8h" },
+          { max: 50, min: 26, recommendation: "1 g IV q12h" },
+          { max: 25.9, min: 10, recommendation: "500 mg IV q12h" },
+          { max: 9.9, min: 0, recommendation: "500 mg IV q24h" }
+        ]
+      },
+      "High Dose (Meningitis/CF/PsA)": {
+        standard_dose: "2 g IV q8h",
+        adjustments: [
+          { max: 500, min: 50.1, recommendation: "2 g IV q8h" },
+          { max: 50, min: 26, recommendation: "2 g IV q12h" },
+          { max: 25.9, min: 10, recommendation: "1 g IV q12h" },
+          { max: 9.9, min: 0, recommendation: "1 g IV q24h" }
+        ]
+      }
+    }
+  },
+  "imipenem-cilastatin": {
+    name: "Imipenem-Cilastatin (IV)",
+    class: "Carbapenem",
+    note: "Highest seizure risk. SHC Restriction.",
+    isMultiStrategy: true,
+    strategies: {
+      "General Infection": {
+        standard_dose: "500 mg q6h or 1 g q8h",
+        adjustments: [
+          { max: 500, min: 60, recommendation: "500 mg q6h or 1 g q8h" },
+          { max: 59.9, min: 30, recommendation: "500 mg q8h" },
+          { max: 29.9, min: 15, recommendation: "500 mg q12h" },
+          { max: 14.9, min: 0, recommendation: "Not recommended unless dialysis w/in 48h" }
+        ]
+      },
+      "NTM (High Dose)": {
+        standard_dose: "1 g q12h",
+        adjustments: [
+          { max: 500, min: 60, recommendation: "1 g q12h" },
+          { max: 59.9, min: 30, recommendation: "750 mg q12h" },
+          { max: 29.9, min: 15, recommendation: "500 mg q12h" },
+          { max: 14.9, min: 0, recommendation: "250-500 mg q12h" }
+        ],
+        rrt: { crrt: "1 g load, then 500 mg q6h" }
+      }
+    }
+  },
+  "ertapenem": {
+    name: "Ertapenem (IV)",
+    class: "Carbapenem",
+    note: "Stable for outpatient. No coverage for Pseudomonas.",
+    standard_dose: "1 g IV q24h",
+    adjustments: [
+      { max: 500, min: 30, recommendation: "1 g IV q24h" },
+      { max: 29.9, min: 0, recommendation: "500 mg IV q24h" }
+    ],
+    rrt: { ihd: "500 mg post-HD", crrt: "1 g q24h" }
+  },
+
+  // ==========================================
+  // IV. FLUOROQUINOLONES
+  // ==========================================
+  "levofloxacin": {
+    name: "Levofloxacin (IV/PO)",
+    class: "Fluoroquinolone",
+    standard_dose: "750 mg q24h",
+    adjustments: [
+      { max: 500, min: 50, recommendation: "750 mg q24h" },
+      { max: 49.9, min: 20, recommendation: "750 mg q48h" },
+      { max: 19.9, min: 10, recommendation: "750 mg Load -> 500 mg q48h" },
+      { max: 9.9, min: 0, recommendation: "750 mg Load -> 500 mg q48h" }
+    ],
+    rrt: { ihd: "Load 750, then 500 q48h post-HD", crrt: "750 mg q24-48h" }
+  },
+  "ciprofloxacin": {
+    name: "Ciprofloxacin (IV/PO)",
+    class: "Fluoroquinolone",
+    standard_dose: "400 mg IV q8-12h",
+    adjustments: [
+      { max: 500, min: 50, recommendation: "400 mg IV q8-12h" },
+      { max: 49.9, min: 30, recommendation: "400 mg IV q12h" },
+      { max: 29.9, min: 0, recommendation: "400 mg IV q24h" }
+    ]
+  },
+  "moxifloxacin": {
+    name: "Moxifloxacin (IV/PO)",
+    class: "Fluoroquinolone",
+    note: "No Renal Adjustment. Not for UTI.",
+    standard_dose: "400 mg q24h",
+    adjustments: [
+      { max: 500, min: 0, recommendation: "400 mg q24h (No Adjustment)" }
+    ]
+  },
+
+  // ==========================================
+  // V. AMINOGLYCOSIDES
+  // ==========================================
+  "gentamicin": {
+    name: "Gentamicin (IV)",
+    class: "Aminoglycoside",
+    note: "Extended Interval (Once Daily) preferred. Monitor levels.",
+    isMultiStrategy: true,
+    strategies: {
+      "Extended Interval (Preferred)": {
+        standard_dose: "5 - 7 mg/kg q24h",
+        dose_factor: 5, // Default multiplier
+        adjustments: [
+          { max: 500, min: 60, recommendation: "5-7 mg/kg q24h" },
+          { max: 59.9, min: 40, recommendation: "5-7 mg/kg q36h" },
+          { max: 39.9, min: 20, recommendation: "5-7 mg/kg q48h" },
+          { max: 19.9, min: 0, recommendation: "Dose by levels only" }
+        ]
+      },
+      "Traditional / Synergy": {
+        standard_dose: "1.5 - 2 mg/kg q8h",
+        dose_factor: 1.5,
+        adjustments: [
+          { max: 500, min: 60, recommendation: "1.5-2 mg/kg q8h" },
+          { max: 59.9, min: 40, recommendation: "1.5-2 mg/kg q12h" },
+          { max: 39.9, min: 20, recommendation: "1.5-2 mg/kg q24h" },
+          { max: 19.9, min: 0, recommendation: "Load 2mg/kg then by levels" }
+        ]
+      }
+    }
+  },
+  "amikacin": {
+    name: "Amikacin (IV)",
+    class: "Aminoglycoside",
+    note: "Use IBW (or AdjBW if obese).",
+    standard_dose: "15 mg/kg q24h",
+    dose_factor: 15,
+    adjustments: [
+      { max: 500, min: 60, recommendation: "15 mg/kg q24h" },
+      { max: 59.9, min: 40, recommendation: "7.5 mg/kg q24h or 15 mg/kg q36h" },
+      { max: 39.9, min: 20, recommendation: "7.5 mg/kg q48h" },
+      { max: 19.9, min: 0, recommendation: "Load 7.5 mg/kg then by levels" }
+    ]
+  },
+
+  // ==========================================
+  // VI. GLYCOPEPTIDES, LIPOPEPTIDES, OTHERS
+  // ==========================================
+  "vancomycin": {
+    name: "Vancomycin (IV)",
+    class: "Glycopeptide",
+    note: "Use Actual Body Weight. TDM Mandatory.",
+    standard_dose: "15 - 20 mg/kg q8-12h",
+    dose_factor: 15,
+    adjustments: [
+      { max: 500, min: 90, recommendation: "15-20 mg/kg q8-12h" },
+      { max: 89.9, min: 50, recommendation: "15-20 mg/kg q12h" },
+      { max: 49.9, min: 15, recommendation: "15-20 mg/kg q24h" },
+      { max: 14.9, min: 0, recommendation: "Load 20-25mg/kg, then by levels" }
+    ],
+    rrt: { ihd: "Load 20-25mg/kg, then by levels", crrt: "10-15 mg/kg q12-24h" }
+  },
+  "daptomycin": {
+    name: "Daptomycin (IV)",
+    class: "Lipopeptide",
+    note: "Do not use for pneumonia. Monitor CPK.",
+    isMultiStrategy: true,
+    strategies: {
+      "SSTI (Skin/Soft Tissue)": {
+        standard_dose: "4 mg/kg q24h",
+        dose_factor: 4,
+        adjustments: [
+          { max: 500, min: 30, recommendation: "4 mg/kg q24h" },
+          { max: 29.9, min: 0, recommendation: "4 mg/kg q48h" }
+        ]
+      },
+      "Bacteremia / Endovascular": {
+        standard_dose: "6 mg/kg q24h",
+        dose_factor: 6,
+        adjustments: [
+          { max: 500, min: 30, recommendation: "6 mg/kg q24h" },
+          { max: 29.9, min: 0, recommendation: "6 mg/kg q48h" }
+        ]
+      },
+      "E. Faecium / High Inoculum": {
+        standard_dose: "8 - 10 mg/kg q24h",
+        dose_factor: 8,
+        adjustments: [
+          { max: 500, min: 30, recommendation: "8-10 mg/kg q24h" },
+          { max: 29.9, min: 0, recommendation: "8-10 mg/kg q48h" }
+        ]
+      }
+    }
+  },
+  "linezolid": {
+    name: "Linezolid (IV/PO)",
+    class: "Oxazolidinone",
+    note: "No renal adj. Monitor platelets.",
+    standard_dose: "600 mg q12h",
+    adjustments: [{ max: 500, min: 0, recommendation: "600 mg q12h (No Adjustment)" }]
+  },
+  "metronidazole": {
+    name: "Metronidazole (IV/PO)",
+    class: "Nitroimidazole",
+    note: "Caution accumulation if CrCl < 30 & used > 2 weeks.",
+    isMultiStrategy: true,
+    strategies: {
+      "CNS / C.diff / Necrotizing": {
+        standard_dose: "500 mg q8h",
+        adjustments: [
+           { max: 500, min: 10, recommendation: "500 mg q8h" },
+           { max: 9.9, min: 0, recommendation: "500 mg q12h" }
+        ]
+      },
+      "Intra-abdominal": {
+        standard_dose: "500 mg q8-12h",
+        adjustments: [{ max: 500, min: 0, recommendation: "500 mg q8-12h" }]
+      },
+      "Severe Hepatic Impairment": {
+        standard_dose: "500 mg q12h",
+        adjustments: [{ max: 500, min: 0, recommendation: "500 mg q12h" }]
+      }
+    }
+  },
+  "cotrimoxazole": {
+    name: "Cotrimoxazole (Oral/IV)",
+    class: "Sulfonamide",
+    note: "Dosing based on TRIMETHOPRIM (TMP) component. 1 DS Tablet = 160mg TMP.",
+    isMultiStrategy: true,
+    strategies: {
+      "Uncomplicated Cystitis": {
+        standard_dose: "160 mg TMP (1 DS Tab) q12h",
+        adjustments: [
+          { max: 500, min: 30, recommendation: "1 DS Tablet q12h" },
+          { max: 29.9, min: 15, recommendation: "1 DS Tablet q24h" },
+          { max: 14.9, min: 0, recommendation: "Not recommended" }
+        ]
+      },
+      "SSTI (Skin/Soft Tissue)": {
+        standard_dose: "160-320 mg TMP (1-2 DS Tabs) q12h",
+        adjustments: [
+          { max: 500, min: 30, recommendation: "1-2 DS Tabs q12h" },
+          { max: 29.9, min: 15, recommendation: "1 DS Tab q12h" },
+          { max: 14.9, min: 0, recommendation: "Not recommended" }
+        ]
+      },
+      "S. Aureus (Bone/Joint)": {
+        standard_dose: "3-4 mg/kg/dose TMP q12h",
+        dose_factor: 3.5,
+        adjustments: [
+          { max: 500, min: 30, recommendation: "~3.5 mg/kg TMP q12h" },
+          { max: 29.9, min: 15, recommendation: "Reduce dose 50%" }
+        ]
+      },
+      "GNB Bacteremia": {
+        standard_dose: "5 mg/kg/dose TMP q12h",
+        dose_factor: 5,
+        adjustments: [
+          { max: 500, min: 30, recommendation: "5 mg/kg TMP q12h" },
+          { max: 29.9, min: 15, recommendation: "2.5 mg/kg TMP q12h" }
+        ]
+      },
+      "Stenotrophomonas": {
+        standard_dose: "15-20 mg/kg/day TMP div q8h",
+        dose_factor: 5, // Per dose (approx)
+        adjustments: [
+          { max: 500, min: 30, recommendation: "15-20 mg/kg/day div q8h" },
+          { max: 29.9, min: 15, recommendation: "Reduce dose 50%" }
+        ]
+      },
+      "PJP Treatment": {
+        standard_dose: "15-20 mg/kg/day TMP div q6-8h",
+        dose_factor: 5, // Per dose q8h or q6h
+        adjustments: [
+          { max: 500, min: 30, recommendation: "15-20 mg/kg/day div q6-8h" },
+          { max: 29.9, min: 15, recommendation: "Reduce dose 50%" },
+          { max: 14.9, min: 0, recommendation: "Not recommended" }
+        ]
+      }
+    }
+  },
+  "clindamycin": {
+    name: "Clindamycin (IV/PO)",
+    class: "Lincosamide",
+    note: "No renal adjustment. C. diff risk.",
+    standard_dose: "600-900 mg q8h",
+    adjustments: [{ max: 500, min: 0, recommendation: "600-900 mg q8h (No Adjustment)" }]
+  },
+  "nitrofurantoin": {
+    name: "Nitrofurantoin (PO)",
+    class: "Nitrofuran",
+    note: "Contraindicated if CrCl < 60 (BEERS). UTI Only.",
+    standard_dose: "100 mg BID",
+    adjustments: [
+      { max: 500, min: 60, recommendation: "100 mg BID" },
+      { max: 59.9, min: 0, recommendation: "CONTRAINDICATED" }
+    ]
+  },
+
+  // ==========================================
+  // VII. ANTIVIRALS
+  // ==========================================
   "acyclovir-iv": {
     name: "Acyclovir (IV)",
     class: "Antiviral",
-    note: "RISIKO NEFROTOKSIK TINGGI. Wajib hidrasi agresif. Gunakan BSA (mg/m2) untuk BMT.",
+    note: "Use IBW (or AdjBW if obese). Maintain hydration.",
     isMultiStrategy: true,
     strategies: {
-      "Treatment: Severe (CNS/VZV)": {
-        standard_dose: "10 mg/kg q8h",
-        adjustments: [
-          { max: 500, min: 51, recommendation: "10 mg/kg q8h" },
-          { max: 50, min: 25, recommendation: "10 mg/kg q12h" },
-          { max: 24.9, min: 10, recommendation: "10 mg/kg q24h" },
-          { max: 9.9, min: 0, recommendation: "5 mg/kg q24h" }
-        ],
-        rrt: { ihd: "5 mg/kg post-HD", crrt: "10 mg/kg q12h", sled: "5 mg/kg" }
-      },
-      "Treatment: General (HSV)": {
-        standard_dose: "5 mg/kg q8h",
-        adjustments: [
-          { max: 500, min: 51, recommendation: "5 mg/kg q8h" },
-          { max: 50, min: 25, recommendation: "5 mg/kg q12h" },
-          { max: 24.9, min: 10, recommendation: "5 mg/kg q24h" },
-          { max: 9.9, min: 0, recommendation: "2.5 mg/kg q24h" }
-        ]
-      },
-      "Prophylaxis: BMT (BSA)": {
+      "Prophylaxis: BMT": {
         standard_dose: "250 mg/m2 q12h",
+        is_bsa: true,
+        dose_factor: 250,
         adjustments: [
-          { max: 500, min: 51, recommendation: "250 mg/m2 q12h" },
+          { max: 500, min: 50.1, recommendation: "250 mg/m2 q12h" },
           { max: 50, min: 25, recommendation: "125 mg/m2 q12h" },
           { max: 24.9, min: 10, recommendation: "125 mg/m2 q24h" },
           { max: 9.9, min: 0, recommendation: "62.5 mg/m2 q24h" }
         ]
       },
-      "Prophylaxis: Hem-Onc": {
+      "Prophylaxis: Heme/Onc": {
         standard_dose: "2 mg/kg q12h",
+        dose_factor: 2,
         adjustments: [
           { max: 500, min: 25, recommendation: "2 mg/kg q12h" },
           { max: 24.9, min: 10, recommendation: "2 mg/kg q24h" },
           { max: 9.9, min: 0, recommendation: "1 mg/kg q24h" }
         ]
+      },
+      "Treatment: General (Mucocutaneous)": {
+        standard_dose: "5 mg/kg q8h",
+        dose_factor: 5,
+        adjustments: [
+          { max: 500, min: 50.1, recommendation: "5 mg/kg q8h" },
+          { max: 50, min: 25, recommendation: "5 mg/kg q12h" },
+          { max: 24.9, min: 10, recommendation: "5 mg/kg q24h" },
+          { max: 9.9, min: 0, recommendation: "2.5 mg/kg q24h" }
+        ]
+      },
+      "Treatment: Severe (CNS/VZV/Dissem)": {
+        standard_dose: "10 mg/kg q8h",
+        dose_factor: 10,
+        adjustments: [
+          { max: 500, min: 50.1, recommendation: "10 mg/kg q8h" },
+          { max: 50, min: 25, recommendation: "10 mg/kg q12h" },
+          { max: 24.9, min: 10, recommendation: "10 mg/kg q24h" },
+          { max: 9.9, min: 0, recommendation: "5 mg/kg q24h" }
+        ]
       }
     }
   },
   "acyclovir-po": {
-    name: "Acyclovir (PO/IO)",
+    name: "Acyclovir (PO)",
     class: "Antiviral",
-    note: "Bioavailabilitas oral rendah (15-30%). Maintain hidrasi.",
     isMultiStrategy: true,
     strategies: {
-      "Treatment: Zoster (800mg)": {
-        standard_dose: "800 mg 5x daily (q4h)",
+      "Zoster (High Dose)": {
+        standard_dose: "800 mg 5x/day",
         adjustments: [
-          { max: 500, min: 25.1, recommendation: "800 mg 5x daily" },
-          { max: 25, min: 10.1, recommendation: "800 mg q8h" },
-          { max: 10, min: 0, recommendation: "800 mg q12h" }
+          { max: 500, min: 25.1, recommendation: "800 mg 5x/day" },
+          { max: 25, min: 10, recommendation: "800 mg q8h" },
+          { max: 9.9, min: 0, recommendation: "800 mg q12h" }
         ]
       },
-      "Treatment: HSV (400mg)": {
-        standard_dose: "400 mg q8h (or 200mg 5x daily)",
+      "HSV (Standard)": {
+        standard_dose: "400 mg q8h",
         adjustments: [
           { max: 500, min: 25.1, recommendation: "400 mg q8h" },
-          { max: 25, min: 10.1, recommendation: "200 mg q8h" },
-          { max: 10, min: 0, recommendation: "200 mg q12h" }
+          { max: 25, min: 10, recommendation: "400 mg q12h" },
+          { max: 9.9, min: 0, recommendation: "200 mg q12h" }
         ]
       }
     }
@@ -274,23 +635,32 @@ const DRUG_DATABASE = {
   "valacyclovir": {
     name: "Valacyclovir (PO)",
     class: "Antiviral",
-    note: "Prodrug Acyclovir. Bioavailabilitas sngt baik. Post-HD: berikan dosis daily.",
     isMultiStrategy: true,
     strategies: {
       "VZV (Zoster)": {
         standard_dose: "1 g q8h",
         adjustments: [
-          { max: 50, min: 30.1, recommendation: "1 g PO q12h" },
-          { max: 30, min: 10, recommendation: "1 g PO q24h" },
-          { max: 9.9, min: 0, recommendation: "500 mg PO q24h" }
-        ],
-        rrt: { ihd: "500 mg post-HD" }
+          { max: 500, min: 50, recommendation: "1 g q8h" },
+          { max: 49.9, min: 30, recommendation: "1 g q12h" },
+          { max: 29.9, min: 10, recommendation: "1 g q24h" },
+          { max: 9.9, min: 0, recommendation: "500 mg q24h" }
+        ]
       },
       "Genital Herpes": {
         standard_dose: "1 g q12h",
         adjustments: [
-          { max: 30, min: 10, recommendation: "1 g q24h" },
+          { max: 500, min: 30, recommendation: "1 g q12h" },
+          { max: 29.9, min: 10, recommendation: "1 g q24h" },
           { max: 9.9, min: 0, recommendation: "500 mg q24h" }
+        ]
+      },
+      "Herpes Labialis": {
+        standard_dose: "2 g q12h x 2 doses (1 Day Treatment)",
+        adjustments: [
+          { max: 500, min: 50, recommendation: "2 g q12h x 2 doses (1 Day)" },
+          { max: 49.9, min: 30, recommendation: "1 g q12h x 2 doses (1 Day)" },
+          { max: 29.9, min: 10, recommendation: "500 mg q12h x 2 doses (1 Day)" },
+          { max: 9.9, min: 0, recommendation: "500 mg x 1 dose" }
         ]
       }
     }
@@ -298,62 +668,112 @@ const DRUG_DATABASE = {
   "valganciclovir": {
     name: "Valganciclovir (PO)",
     class: "Antiviral",
-    note: "Risiko Myelosupresi tinggi. Monitor CBC.",
     isMultiStrategy: true,
     strategies: {
-      "Induction (14-21d)": {
+      "Induction": {
         standard_dose: "900 mg q12h",
         adjustments: [
+          { max: 500, min: 60, recommendation: "900 mg q12h" },
           { max: 59.9, min: 40, recommendation: "450 mg q12h" },
           { max: 39.9, min: 25, recommendation: "450 mg q24h" },
           { max: 24.9, min: 10, recommendation: "450 mg q48h" },
-          { max: 9.9, min: 0, recommendation: "200 mg 3x/week post-HD" }
+          { max: 9.9, min: 0, recommendation: "200 mg x 1 post-HD" }
         ]
       },
       "Maintenance": {
         standard_dose: "900 mg q24h",
         adjustments: [
+          { max: 500, min: 60, recommendation: "900 mg q24h" },
           { max: 59.9, min: 40, recommendation: "450 mg q24h" },
           { max: 39.9, min: 25, recommendation: "450 mg q48h" },
-          { max: 24.9, min: 10, recommendation: "450 mg twice/week" }
+          { max: 24.9, min: 10, recommendation: "450 mg 2x/week" },
+          { max: 9.9, min: 0, recommendation: "100 mg x 1 post-HD" }
+        ]
+      }
+    }
+  },
+  "ganciclovir": {
+    name: "Ganciclovir (IV)",
+    class: "Antiviral",
+    note: "Hematotoxic. Use IBW.",
+    isMultiStrategy: true,
+    strategies: {
+      "Induction": {
+        standard_dose: "5 mg/kg q12h",
+        dose_factor: 5,
+        adjustments: [
+          { max: 500, min: 70, recommendation: "5 mg/kg q12h" },
+          { max: 69.9, min: 50, recommendation: "2.5 mg/kg q12h" },
+          { max: 49.9, min: 25, recommendation: "2.5 mg/kg q24h" },
+          { max: 24.9, min: 10, recommendation: "1.25 mg/kg q24h" },
+          { max: 9.9, min: 0, recommendation: "1.25 mg/kg 3x/week post-HD" }
+        ]
+      },
+      "Maintenance": {
+        standard_dose: "5 mg/kg q24h",
+        dose_factor: 5,
+        adjustments: [
+          { max: 500, min: 70, recommendation: "5 mg/kg q24h" },
+          { max: 69.9, min: 50, recommendation: "2.5 mg/kg q24h" },
+          { max: 49.9, min: 25, recommendation: "1.25 mg/kg q24h" },
+          { max: 24.9, min: 10, recommendation: "0.625 mg/kg q24h" }
+        ]
+      }
+    }
+  },
+  "oseltamivir": {
+    name: "Oseltamivir (PO)",
+    class: "Antiviral",
+    isMultiStrategy: true,
+    strategies: {
+      "Treatment": {
+        standard_dose: "75 mg q12h",
+        adjustments: [
+          { max: 500, min: 61, recommendation: "75 mg q12h" },
+          { max: 60, min: 31, recommendation: "30 mg q12h" },
+          { max: 30, min: 11, recommendation: "30 mg q24h" },
+          { max: 10, min: 0, recommendation: "30 mg x1" }
+        ]
+      },
+      "Prophylaxis": {
+        standard_dose: "75 mg q24h",
+        adjustments: [
+          { max: 500, min: 61, recommendation: "75 mg q24h" },
+          { max: 60, min: 31, recommendation: "30 mg q24h" },
+          { max: 30, min: 11, recommendation: "30 mg q48h" }
         ]
       }
     }
   },
 
-  // --- ANTIFUNGALS ---
+  // ==========================================
+  // VIII. ANTIFUNGALS
+  // ==========================================
   "fluconazole": {
     name: "Fluconazole (IV/PO)",
     class: "Antifungal",
-    note: "Maintenance dose turun 50% jika CrCl < 50. Post-HD berikan 100% dosis.",
+    note: "Reduce dose by 50% if CrCl < 50. 100% dose post-HD.",
     isMultiStrategy: true,
     strategies: {
-      "Oropharyngeal / Peritonitis": {
-        standard_dose: "Load 200mg, then 100-200mg daily",
+      "Candidemia / Severe": {
+        standard_dose: "800 mg Load -> 400-800 mg q24h",
         adjustments: [
-          { max: 50, min: 30, recommendation: "Load 200mg, then 100mg q24h" },
-          { max: 29.9, min: 0, recommendation: "Load 200mg, then 200mg q48h" }
-        ],
-        rrt: { ihd: "Dose q48h post-HD", crrt: "Load 400mg, then 100-200mg daily" }
+          { max: 500, min: 50, recommendation: "800mg Load -> 400-800 mg q24h" },
+          { max: 49.9, min: 0, recommendation: "800mg Load -> 200-400 mg q24h" }
+        ]
       },
-      "Severe (Candidemia/CNS)": {
-        standard_dose: "Load 800mg, then 400-800mg daily",
+      "Esophageal / UTI": {
+        standard_dose: "400 mg q24h",
         adjustments: [
-          { max: 50, min: 30, recommendation: "Load 800mg, then 200-400mg q24h" },
-          { max: 29.9, min: 0, recommendation: "Load 800mg, then 400-800mg post-HD" }
+          { max: 500, min: 50, recommendation: "400 mg q24h" },
+          { max: 49.9, min: 0, recommendation: "200 mg q24h" }
         ]
       },
       "C. glabrata (SDD)": {
-        standard_dose: "800 mg daily",
+        standard_dose: "800 mg q24h",
         adjustments: [
-          { max: 50, min: 30, recommendation: "Load 800mg, then 400mg daily" },
-          { max: 29.9, min: 0, recommendation: "Load 800mg, then 800mg post-HD" }
-        ]
-      },
-      "Esophageal / Osteo": {
-        standard_dose: "400 mg daily",
-        adjustments: [
-          { max: 50, min: 30, recommendation: "Load 400mg, 200mg daily" }
+          { max: 500, min: 50, recommendation: "800 mg q24h" },
+          { max: 49.9, min: 0, recommendation: "400 mg q24h" }
         ]
       }
     }
@@ -361,110 +781,61 @@ const DRUG_DATABASE = {
   "voriconazole": {
     name: "Voriconazole (IV/PO)",
     class: "Antifungal",
-    note: "IV solvent (Cyclodextrin) toxic pada CrCl < 50; switch ke PO (1:1 conversion).",
+    note: "IV vehicle accumulates CrCl < 50. Oral preferred.",
     isMultiStrategy: true,
     strategies: {
-      "Intravenous": {
-        standard_dose: "6 mg/kg q12h x2, then 4 mg/kg q12h",
-        adjustments: [{ max: 50, min: 0, recommendation: "Switch to PO if CrCl < 50." }]
+      "IV": {
+        standard_dose: "6mg/kg x2 Load -> 4mg/kg q12h",
+        dose_factor: 4, // Maintenance
+        adjustments: [{ max: 50, min: 0, recommendation: "Contraindicated (Accumulation). Use PO." }]
       },
-      "Oral (PO)": {
-        standard_dose: "400 mg q12h x2, then 200 mg q12h",
-        adjustments: [{ max: 500, min: 0, recommendation: "No renal adjustment." }]
+      "PO": {
+        standard_dose: "400mg x2 Load -> 200mg q12h",
+        adjustments: [{ max: 500, min: 0, recommendation: "No adjustment." }]
       }
     }
+  },
+  "posaconazole": {
+    name: "Posaconazole (IV/PO)",
+    class: "Antifungal",
+    note: "IV vehicle accumulates CrCl < 50. Use PO if possible.",
+    standard_dose: "300 mg q24h (after load)",
+    adjustments: [
+      { max: 500, min: 50, recommendation: "300 mg IV/PO q24h" },
+      { max: 49.9, min: 0, recommendation: "Use PO: 300mg PO BID x1 day, then 300mg PO q24h" }
+    ]
   },
   "caspofungin": {
     name: "Caspofungin (IV)",
     class: "Antifungal",
-    note: "Aman ginjal. Child-Pugh B/C no adj. Endocarditis target 150mg daily.",
-    standard_dose: "70mg load, then 50mg daily",
-    adjustments: [{ max: 500, min: 0, recommendation: "No renal adjustment required." }]
+    note: "No renal adj. Hepatic adj needed (Child-Pugh B: 35mg).",
+    standard_dose: "70 mg Load -> 50 mg q24h",
+    adjustments: [{ max: 500, min: 0, recommendation: "No renal adjustment." }]
+  },
+  "micafungin": {
+    name: "Micafungin (IV)",
+    class: "Antifungal",
+    note: "No renal adjustment.",
+    standard_dose: "100 mg q24h",
+    adjustments: [{ max: 500, min: 0, recommendation: "100 mg IV q24h" }]
   },
   "amphotericin-b": {
-    name: "Amphotericin B (IV)",
+    name: "Amphotericin B",
     class: "Antifungal",
-    note: "Nefrotoksik arterial. Salt loading NS 10-15 ml/kg pre-infusion wajib.",
-    standard_dose: "3 - 5 mg/kg daily (Liposomal)",
-    adjustments: [{ max: 500, min: 0, recommendation: "Monitor SCr closely." }]
-  },
-
-  // --- OTHERS ---
-  "metronidazole": {
-    name: "Metronidazole (IV/PO)",
-    class: "Nitroimidazole",
-    note: "Risiko akumulasi metabolit pada CrCl < 30. Monitor neuropati.",
+    note: "Nefrotoksik.",
     isMultiStrategy: true,
     strategies: {
-      "CNS / C.diff / Sepsis": {
-        standard_dose: "500 mg q8h",
-        adjustments: [{ max: 29.9, min: 0, recommendation: "500 mg q8h (Monitor accumulation)" }]
+      "Liposomal (Ambisome)": {
+        standard_dose: "3 - 5 mg/kg q24h",
+        dose_factor: 4,
+        adjustments: [{ max: 500, min: 0, recommendation: "No fixed adj. Monitor Cr." }]
       },
-      "Intra-abdominal": {
-        standard_dose: "500 mg q8-12h",
-        adjustments: [{ max: 500, min: 0, recommendation: "500 mg q8-12h" }]
-      },
-      "Hepatic Impairment": {
-        standard_dose: "500 mg q12h",
-        adjustments: [{ max: 500, min: 0, recommendation: "500 mg q12h" }]
+      "Deoxycholate (Conventional)": {
+        standard_dose: "0.5 - 1 mg/kg q24h",
+        dose_factor: 0.7,
+        adjustments: [{ max: 500, min: 0, recommendation: "Avoid if possible in CKD." }]
       }
     }
-  },
-  "vancomycin": {
-    name: "Vancomycin (IV)",
-    class: "Glycopeptide",
-    note: "Target AUC/MIC 400-600. TDM mandatory. Load 25-30mg/kg.",
-    standard_dose: "15 - 20 mg/kg q12h",
-    adjustments: [{ max: 30, min: 0, recommendation: "Load, then by level (Pre-HD)." }],
-    rrt: { ihd: "By Level pre-HD", crrt: "10-15mg/kg q12-24h" }
-  },
-  "gentamicin": {
-    name: "Gentamicin (IV)",
-    class: "Aminoglycoside",
-    note: "Once Daily dosing disarankan (Extended Interval). Trough target < 1.",
-    standard_dose: "5 - 7 mg/kg daily",
-    adjustments: [{ max: 60, min: 0, recommendation: "Dosing based on TDM levels." }]
-  },
-  "levofloxacin": {
-    name: "Levofloxacin (IV/PO)",
-    class: "Fluoroquinolone",
-    note: "Bioavailabilitas PO sngt tinggi. Risiko tendinitis.",
-    standard_dose: "750 mg daily",
-    adjustments: [{ max: 50, min: 20, recommendation: "750mg Load, then 750mg q48h" }, { max: 19.9, min: 0, recommendation: "750mg Load, then 500mg q48h" }]
-  },
-  "ciprofloxacin": {
-    name: "Ciprofloxacin (IV/PO)",
-    class: "Fluoroquinolone",
-    note: "Potent CYP1A2 inhibitor. Avoid antacids.",
-    standard_dose: "400 mg q8-12h",
-    adjustments: [{ max: 30, min: 0, recommendation: "400 mg q24h" }]
-  },
-  "cotrimoxazole": {
-    name: "Cotrimoxazole (IV/PO)",
-    class: "Sulfonamide",
-    note: "Risiko hiperkalemia berat. PJP dose target 15-20mg/kg TMP.",
-    standard_dose: "15 - 20 mg/kg TMP daily",
-    adjustments: [{ max: 30, min: 15, recommendation: "Reduce dose by 50%" }]
-  },
-  "oseltamivir": {
-    name: "Oseltamivir (PO)",
-    class: "Antiviral",
-    standard_dose: "75 mg BID",
-    adjustments: [{ max: 60, min: 31, recommendation: "30 mg BID" }, { max: 30, min: 11, recommendation: "30 mg daily" }]
-  },
-  "ganciclovir": {
-    name: "Ganciclovir (IV)",
-    class: "Antiviral",
-    note: "Hematotoksik. Gunakan IBW pada obesitas.",
-    standard_dose: "5 mg/kg q12h (Induction)",
-    adjustments: [{ max: 69, min: 50, recommendation: "2.5 mg/kg q12h" }, { max: 49, min: 25, recommendation: "2.5 mg/kg q24h" }, { max: 24.9, min: 10, recommendation: "1.25 mg/kg q24h" }]
-  },
-  "linezolid": {
-    name: "Linezolid (IV/PO)",
-    class: "Oxazolidinone",
-    note: "No renal adj. Monitor trombositopenia (setelah > 10 hari).",
-    standard_dose: "600 mg BID",
-    adjustments: [{ max: 500, min: 0, recommendation: "No renal adjustment required." }]
   }
 };
 
@@ -488,12 +859,26 @@ const calculateBSA = (height, weight) => {
 const calculateCrCl = (age, weight, creatinine, gender, height) => {
   if (!age || !weight || !creatinine || !height || creatinine <= 0) return null;
   const ibw = calculateIBW(height, gender);
-  let dosingWeight = weight < ibw ? weight : (weight > ibw * 1.3 ? ibw + 0.4 * (weight - ibw) : ibw);
-  let weightType = weight < ibw ? "Actual" : (weight > ibw * 1.3 ? "Adjusted" : "IBW");
+  
+  // SHC Weight Logic:
+  // If ABW < IBW -> Use ABW (Actual)
+  // If ABW > IBW -> Use Adjusted (IBW + 0.4(Actual - IBW))
+  
+  let dosingWeight = weight;
+  let weightType = "Actual";
+
+  if (weight > ibw) {
+    dosingWeight = ibw + 0.4 * (weight - ibw);
+    weightType = "Adjusted (Obese)";
+  } else {
+    dosingWeight = weight;
+    weightType = "Actual";
+  }
+
   const constant = gender === 'male' ? 1 : 0.85;
   const bsa = calculateBSA(height, weight);
   const result = ((140 - age) * dosingWeight) / (72 * creatinine) * constant;
-  return { value: result, usedWeight: dosingWeight, weightType, bsa };
+  return { value: result, usedWeight: dosingWeight, weightType, bsa, ibw, actualWeight: weight };
 };
 
 /**
@@ -540,20 +925,53 @@ export default function App() {
     return selectedDrug.rrt;
   }, [selectedDrug, selectedStrategy]);
 
+  const getCalculatedDose = (drug, strategyKey, calc) => {
+    if (!calc || !drug) return null;
+    
+    let strategy = drug;
+    if (drug.isMultiStrategy && strategyKey) {
+      strategy = drug.strategies[strategyKey];
+    }
+    
+    if (!strategy?.dose_factor) return null;
+
+    // Weight Logic for Dosing
+    // Acyclovir/Aminoglycosides/Theophylline often use IBW/AdjBW
+    // Vancomycin uses Actual
+    let weightToUse = calc.usedWeight; // Default to SHC logic (Adj if Obese)
+    
+    // Override for Vancomycin (Actual)
+    if (drug.name.includes("Vancomycin")) {
+      weightToUse = calc.actualWeight;
+    }
+    // Override for BSA drugs
+    if (strategy.is_bsa) {
+      const dose = strategy.dose_factor * calc.bsa;
+      return `${dose.toFixed(0)} mg`;
+    }
+
+    const dose = strategy.dose_factor * weightToUse;
+    // Format to grams if > 1000
+    if (dose >= 1000) return `${(dose/1000).toFixed(1)} g`;
+    return `${dose.toFixed(0)} mg`;
+  };
+
   const getRec = (drug, crclVal, strategyKey) => {
     if (!drug) return "";
     if (!crclVal && crclVal !== 0) return "Lengkapi data pasien...";
     
+    const findAdj = (adjustments, val) => {
+        return adjustments.find(a => val <= a.max && val >= a.min);
+    };
+
     if (drug.isMultiStrategy) {
       if (!strategyKey || !drug.strategies?.[strategyKey]) return "Syncing Strategy...";
       const strat = drug.strategies[strategyKey];
-      if (!strat.adjustments) return strat.standard_dose;
-      const adj = strat.adjustments.find(a => crclVal <= a.max && crclVal >= a.min);
+      const adj = findAdj(strat.adjustments, crclVal);
       return adj ? adj.recommendation : (strat.standard_dose || "Standard Dose");
     }
 
-    if (!drug.adjustments) return drug.standard_dose;
-    const adj = drug.adjustments.find(a => crclVal <= a.max && crclVal >= a.min);
+    const adj = findAdj(drug.adjustments, crclVal);
     return adj ? adj.recommendation : (drug.standard_dose || "Standard Dose");
   };
 
@@ -563,6 +981,8 @@ export default function App() {
     if (val < 60) return 'bg-amber-500 text-white shadow-amber-200';
     return 'bg-green-600 text-white shadow-green-200';
   };
+
+  const calcDoseValue = getCalculatedDose(selectedDrug, selectedStrategy, calculation);
 
   return (
     <div className="min-h-screen bg-slate-50 font-sans text-slate-900 pb-12">
@@ -575,10 +995,12 @@ export default function App() {
                 Adjustr.io 
                 <span className="text-blue-500 text-[10px] font-bold uppercase tracking-wider">for medical professional only</span>
               </h1>
-              <p className="text-[10px] text-slate-400 uppercase tracking-widest font-bold">Dosing Intelligence Engine</p>
+              <p className="text-[10px] text-slate-400 uppercase tracking-widest font-bold flex items-center gap-1">
+                 <ShieldCheck className="w-3 h-3" /> SHC 2025 Edition + Expanded
+              </p>
             </div>
           </div>
-          <button onClick={() => setPatient({ age: '', gender: 'male', weight: '', height: '', creatinine: '' })} className="text-xs bg-slate-800 px-3 py-1.5 rounded-full border border-slate-700 transition-colors flex items-center gap-1 text-white hover:bg-slate-700 transition-all">
+          <button onClick={() => setPatient({ age: '', gender: 'male', weight: '', height: '', creatinine: '' })} className="text-xs bg-slate-800 px-3 py-1.5 rounded-full border border-slate-700 transition-colors flex items-center gap-1 text-white hover:bg-slate-700">
             <RefreshCw className="h-3 w-3" /> Reset
           </button>
         </div>
@@ -691,6 +1113,22 @@ export default function App() {
                   </div>
                 )}
 
+                {calcDoseValue && (
+                  <div className="bg-slate-900 rounded-3xl p-5 text-white shadow-lg border border-slate-700 flex items-center justify-between">
+                    <div>
+                      <div className="flex items-center gap-2 mb-1 opacity-70">
+                        <Calculator className="h-4 w-4" />
+                        <span className="text-[10px] font-black uppercase tracking-widest">Calculated Single Dose</span>
+                      </div>
+                      <div className="text-2xl font-black tracking-tight">{calcDoseValue}</div>
+                    </div>
+                    <div className="text-right">
+                       <div className="text-[9px] uppercase font-bold text-slate-400">Based on</div>
+                       <div className="text-sm font-bold text-white">{calculation?.usedWeight.toFixed(1)} kg</div>
+                    </div>
+                  </div>
+                )}
+
                 <div className="bg-blue-600 rounded-3xl p-6 text-white shadow-lg shadow-blue-200">
                   <div className="flex items-center gap-2 mb-3 opacity-80">
                     <Activity className="h-4 w-4" />
@@ -748,7 +1186,7 @@ export default function App() {
       )}
 
       <footer className="max-w-2xl mx-auto px-6 text-center mt-12 space-y-2 opacity-60 pb-8">
-        <p className="text-[10px] leading-relaxed">Based on Stanford Dosing Guide & MIMS (Cefoperazone + Sulbactam).</p>
+        <p className="text-[10px] leading-relaxed">Based on Stanford Dosing Guide (Nov 2025) & MIMS (Cefoperazone + Sulbactam).</p>
         <p className="text-[10px] leading-relaxed">This tool is for educational purposes. Clinical judgment required.</p>
         <p className="text-[10px] font-bold uppercase tracking-widest mt-2">© 2026 - IWP I Adjustr.io</p>
       </footer>
